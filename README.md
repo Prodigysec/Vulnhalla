@@ -1,4 +1,5 @@
-# Vulnhalla - Automated CodeQL Analysis with LLM Classification
+# Vulnhalla 
+# Automated CodeQL Analysis with LLM Classification
 
 <div align="center">
   <img src="images/vulnhalla_logo.png" alt="Vulnhalla" width="400">
