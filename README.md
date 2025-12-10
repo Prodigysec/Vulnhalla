@@ -10,23 +10,7 @@ Vulnhalla automates the complete security analysis pipeline:
 1. **Fetching repositories** of a given programming language from GitHub
 2. **Downloading** their corresponding [CodeQL](https://github.com/github/codeql) databases (if available)
 3. **Running CodeQL queries** on those databases to detect security or code-quality issues
-4. **Post-processing** the results with an LLM (ChatGPT, Claude, etc.) to classify and filter issues
-
----
-
-### Key Modules
-
-- **`src/codeql/fetch_repos.py`**: Fetches GitHub repositories and downloads their CodeQL databases. Creates `output/zip_dbs` and `output/databases/<lang>/<org>/<repo>` folders.
-
-- **`src/codeql/run_codeql_queries.py`**: Pre-compiles `.ql` queries in `data/queries/<LANG>/tools` and `data/queries/<LANG>/issues`, then analyzes databases in `output/databases/<LANG>/`. Outputs `issues.csv` per database.
-
-- **`src/llm/llm_analyzer.py`**: Handles communication with LLMs (OpenAI, Azure, Gemini, etc.) to classify results. Includes prompt templates and API logic.
-
-- **`src/vulnhalla.py`**: Main orchestrator that aggregates results and uses LLM for classification. Organizes outputs by type/severity and stores in `output/results/<LANG>/<ISSUE_TYPE>/`.
-
-- **`src/ui/ui_app.py`**: User Interface (UI) for browsing and exploring analysis results with interactive features.
-
-- **`src/pipeline.py`**: Unified pipeline orchestrator that runs the complete workflow (fetch, query, classify, UI) in a single command.
+4. **Post-processing** the results with an LLM (ChatGPT, Gemini, etc.) to classify and filter issues
 
 ---
 
