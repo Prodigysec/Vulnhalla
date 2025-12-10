@@ -21,18 +21,23 @@ from src.codeql.run_codeql_queries import compile_and_run_codeql_queries, DEFAUL
 from src.vulnhalla import IssueAnalyzer
 from src.utils.config import get_codeql_path
 from src.utils.config_validator import validate_and_exit_on_error
+from src.utils.logger import setup_logging, get_logger
 from src.ui.ui_app import main as ui_main
+
+logger = get_logger(__name__)
 
 
 def main():
-    print("Starting Vulnhalla pipeline... This may take a few minutes.")
-    print()
+    # Initialize logging
+    setup_logging()
+    logger.info("Starting Vulnhalla pipeline... This may take a few minutes.")
+    logger.info("")
     
     # Validate configuration before starting
     validate_and_exit_on_error()
     
     # 1) Fetch CodeQL database
-    print("[1/3] Fetching CodeQL DBs")
+    logger.info("[1/3] Fetching CodeQL DBs")
     fetch_codeql_dbs(
         lang="c",          # Or use fetch_repos.LANG if set
         threads=4,        # Higher threads may exceed GitHub rate limits. Add a GitHub token if you need higher throughput.
@@ -42,7 +47,7 @@ def main():
     fetch_codeql_dbs(lang="c", threads=16, single_repo="redis/redis")
 
     # 2) Run CodeQL queries on all downloaded databases
-    print("\n[2/3] Running CodeQL Queries")
+    logger.info("\n[2/3] Running CodeQL Queries")
     compile_and_run_codeql_queries(
         codeql_bin=get_codeql_path(),
         lang="c",
@@ -51,14 +56,14 @@ def main():
     )
 
     # 3) Build/Analyze CodeQL results
-    print("\n[3/3] Building and Analyzing Results")
+    logger.info("\n[3/3] Building and Analyzing Results")
     # Load configuration from .env file (create .env from .env.example)
     # Or use: analyzer = IssueAnalyzer(lang="c", api_key="your-api-key")
     analyzer = IssueAnalyzer(lang="c")
     analyzer.run()
 
-    print("\n✅ Pipeline completed successfully!")
-    print("Opening results UI...")
+    logger.info("\n✅ Pipeline completed successfully!")
+    logger.info("Opening results UI...")
     ui_main()
 
 if __name__ == "__main__":

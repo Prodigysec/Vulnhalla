@@ -16,8 +16,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import litellm
 from src.utils.llm_config import load_llm_config, get_model_name
 from src.utils.config_validator import validate_llm_config_dict
-
+from src.utils.logger import get_logger
 from src.utils.common_functions import read_file_lines_from_zip
+
+logger = get_logger(__name__)
 
 
 class LLMAnalyzer:
@@ -189,7 +191,7 @@ class LLMAnalyzer:
                 provider = config.get("provider", "openai")
                 model = config.get("model", "gpt-4o")
                 self.model = get_model_name(provider, model)
-                print("Using model:", self.model)
+                logger.info("Using model: %s", self.model)
                 self.setup_litellm_env()
                 return
             

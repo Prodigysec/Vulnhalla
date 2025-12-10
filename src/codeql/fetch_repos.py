@@ -24,6 +24,9 @@ from pySmartDL import SmartDL
 # Import from your local common_functions where needed
 from src.utils.common_functions import read_file, write_file_text
 from src.utils.config import get_github_token
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 LANG: str = "c"
 
@@ -49,14 +52,14 @@ def fetch_repos_from_github_api(url: str) -> Dict[str, Any]:
 
     # If approaching the rate limit, wait until reset
     if remaining_requests and reset_time and int(remaining_requests) < 7:
-        print(f"Remaining requests: {remaining_requests}")
-        print(
-            "Rate limit resets at: "
-            f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(reset_time)))}"
+        logger.warning("Remaining requests: %s", remaining_requests)
+        logger.warning(
+            "Rate limit resets at: %s",
+            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(reset_time)))
         )
         wait_time = int(reset_time) - int(time.time())
         if wait_time > 0:
-            print(f"Waiting for {wait_time/60} minutes until the rate limit resets.")
+            logger.warning("Waiting for %.2f minutes until the rate limit resets.", wait_time / 60)
             time.sleep(wait_time + 1)
         if int(remaining_requests) == 0:
             return fetch_repos_from_github_api(url)
@@ -101,14 +104,14 @@ def validate_rate_limit(threads: int) -> None:
     remaining_requests = rate_limit["resources"]["core"]["remaining"]
     reset_time = rate_limit["resources"]["core"]["reset"]
     if int(remaining_requests) < threads + 3:
-        print(f"Remaining requests: {remaining_requests}")
-        print(
-            "Rate limit resets at: "
-            f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(reset_time)))}"
+        logger.warning("Remaining requests: %s", remaining_requests)
+        logger.warning(
+            "Rate limit resets at: %s",
+            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(reset_time)))
         )
         wait_time = int(reset_time) - int(time.time()) + 120
         if wait_time > 0:
-            print(f"Waiting for {wait_time / 60} minutes until the rate limit resets.")
+            logger.warning("Waiting for %.2f minutes until the rate limit resets.", wait_time / 60)
             time.sleep(wait_time)
 
 
@@ -136,25 +139,48 @@ def custom_download(url: str, local_filename: str) -> None:
     try:
         with requests.get(url, headers=headers, stream=True) as response:
             total_size = int(response.headers.get("content-length", 0)) + file_size
-            print("file_size", total_size, "kb")
-            print("file_size", total_size / 1_000_000, "mb")
+            logger.debug("File size: %d KB (%.2f MB)", total_size, total_size / 1_000_000)
 
             mode = "ab" if file_size > 0 else "wb"
             with open(local_filename, mode) as file:
                 downloaded_size = file_size
+                last_update = time.time()
+                
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         file.write(chunk)
                         downloaded_size += len(chunk)
-                        progress = (downloaded_size / total_size) * 100
-                        print(f"\rDownloading: {progress:.2f}% complete", end="")
+                        
+                        # Update progress every 0.1 seconds to avoid too frequent updates
+                        current_time = time.time()
+                        if current_time - last_update >= 0.1 or downloaded_size == total_size:
+                            progress = (downloaded_size / total_size) * 100 if total_size > 0 else 0
+                            elapsed = current_time - start_time
+                            speed = downloaded_size / elapsed if elapsed > 0 else 0
+                            
+                            # Format sizes
+                            downloaded_mb = downloaded_size / 1_000_000
+                            total_mb = total_size / 1_000_000
+                            speed_mb = speed / 1_000_000
+                            
+                            # Create progress bar (20 characters)
+                            bar_length = 20
+                            filled = int(bar_length * progress / 100)
+                            bar = "█" * filled + "░" * (bar_length - filled)
+                            
+                            # Print progress with bar, percentage, size, and speed
+                            print(f"\rDownloading: [{bar}] {progress:.1f}% | {downloaded_mb:.2f}/{total_mb:.2f} MB | {speed_mb:.2f} MB/s", end="", flush=True)
+                            last_update = current_time
+                
+                # Print newline after completion
+                print()
 
         end_time = time.time()
         time_taken = end_time - start_time
-        print(f"\nFile downloaded successfully as {local_filename}")
-        print(f"Download completed in {time_taken / 60:.2f} minutes.")
+        logger.info("File downloaded successfully as %s", local_filename)
+        logger.info("Download completed in %.2f minutes.", time_taken / 60)
     except Exception as e:
-        print(f"Download interrupted: {e}. Retrying...")
+        logger.warning("Download interrupted: %s. Retrying...", e)
         custom_download(url, local_filename)
 
 
@@ -184,7 +210,7 @@ def multi_thread_db_download(url: str, repo_name: str, threads: int = 2) -> str:
 
     validate_rate_limit(threads)
     downloader = SmartDL(
-        url, dest, request_args=request_args, threads=threads, progress_bar=True, verify=False
+        url, dest, request_args=request_args, threads=threads, progress_bar=False, verify=False
     )
     downloader.start()
     return downloader.get_dest()
@@ -281,7 +307,7 @@ def download_and_extract_db(repo: Dict[str, Any], threads: int, extract_folder: 
         extract_folder (str): Where to extract the DB files.
     """
     org_name, repo_name = repo["repo_name"].split("/")
-    print(f"Downloading repo {org_name}/{repo_name}")
+    logger.info("Downloading repo %s/%s", org_name, repo_name)
     zip_path = multi_thread_db_download(repo["db_url"], repo_name, threads)
 
     db_path = os.path.join(extract_folder, repo_name)
@@ -306,9 +332,9 @@ def download_and_extract_db(repo: Dict[str, Any], threads: int, extract_folder: 
                 break
             except (PermissionError, OSError):
                 if attempt == 2:  # Last attempt failed
-                    print(f"\n❌ Error: Could not rename {source_path}")
-                    print("   The folder may be locked. Please close any IDEs, File Explorer, or antivirus")
-                    print("   that might be accessing this folder, then run the script again.\n")
+                    logger.error("❌ Error: Could not rename %s", source_path)
+                    logger.error("   The folder may be locked. Please close any IDEs, File Explorer, or antivirus")
+                    logger.error("   that might be accessing this folder, then run the script again.")
                     sys.exit(1)
 
 def download_db_by_name(repo_name: str, lang: str, threads: int) -> None:
@@ -324,7 +350,7 @@ def download_db_by_name(repo_name: str, lang: str, threads: int) -> None:
     repo = {"stars": 0, "forks": 0, "repo_name": repo_name, "html_url": ""}
     repo_db = filter_repos_by_db_and_lang([repo], lang)
     if not repo_db:
-        print(f"No {lang} DB found for {repo_name}")
+        logger.warning("No %s DB found for %s", lang, repo_name)
         return
     download_and_extract_db(repo_db[0], threads, os.path.join("output/databases", lang))
 
@@ -363,12 +389,12 @@ def fetch_codeql_dbs(
         return
 
     # Otherwise fetch top repos for this language
-    print(f"Fetching up to {max_repos} top {lang} repos with DBs on GitHub.")
+    logger.info("Fetching up to %d top %s repos with DBs on GitHub.", max_repos, lang)
     repos_db = search_top_matching_repos(max_repos, lang)
     write_file_text(backup_file, json.dumps(repos_db))
 
     for i, repo_info in enumerate(repos_db):
-        print(f"Downloading repo {i + 1}/{len(repos_db)}: {repo_info['repo_name']}")
+        logger.info("Downloading repo %d/%d: %s", i + 1, len(repos_db), repo_info['repo_name'])
         download_and_extract_db(repo_info, threads, db_folder)
 
         # Update the backup file in case of error or partial completion
@@ -384,7 +410,7 @@ def main_cli() -> None:
     CLI entry point. If no arguments, fetch top LANG repos.
     If an argument 'org/repo' is provided, fetch just that DB.
     """
-    print("current lang:", LANG)
+    logger.info("Current lang: %s", LANG)
 
     if len(sys.argv) == 1:
         # No arguments, do the "bulk fetch"
@@ -394,7 +420,7 @@ def main_cli() -> None:
         if "/" in sys.argv[1]:
             fetch_codeql_dbs(lang=LANG, threads=4, single_repo=sys.argv[1])
         else:
-            print("Usage:\n  python fetch_repos.py\n  or\n  python fetch_repos.py orgName/repoName")
+            logger.error("Usage:\n  python fetch_repos.py\n  or\n  python fetch_repos.py orgName/repoName")
 
 
 if __name__ == "__main__":

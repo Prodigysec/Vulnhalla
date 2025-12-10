@@ -29,6 +29,7 @@ We recommend using Python 3.10 – 3.13. Python 3.14+ is not supported (grpcio w
   - Provide a clear description of your changes
   - Reference any related issues
   - Ensure your code works with Python 3.10-3.13
+- **Logging**: Use structured logging instead of `print()` statements (see [Logging Guidelines](#logging-guidelines) below)
 
 
 ### General Steps for Contributing (Creating a Pull Request)
@@ -74,7 +75,41 @@ Before reporting issues, please:
 - Check existing issues to avoid duplicates
 - Include Python version, OS, and error messages
 - Provide steps to reproduce the issue
-- 
+
+## Logging Guidelines
+
+Vulnhalla uses centralized logging. Always use `get_logger(__name__)` instead of `print()` for application messages.
+
+### Basic Usage
+
+```python
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+# ✅ Good
+logger.info("Processing database: %s", db_path)
+logger.warning("Rate limit approaching: %d requests remaining", remaining)
+logger.error("Failed to process: %s", error_message)
+logger.debug("Debug information: %s", debug_data)
+
+# ❌ Bad
+print("Processing database:", db_path)  # Don't use print()
+```
+
+### Log Levels
+
+- **`logger.debug()`** - Detailed diagnostics (shown with `LOG_LEVEL=DEBUG`)
+- **`logger.info()`** - Status updates, progress messages
+- **`logger.warning()`** - Warnings (rate limits, missing data)
+- **`logger.error()`** - Errors, failures, exceptions
+
+### When Print() is Acceptable
+
+`print()` is only acceptable for:
+- Interactive CLI prompts
+- Real-time progress indicators with `\r` (e.g., download progress bars)
+
 ## Testing
 
 Please test your changes manually using the example scripts:
@@ -83,6 +118,15 @@ Please test your changes manually using the example scripts:
 - `python examples/ui_example.py` - Tests the UI
 
 Ensure your code works with Python 3.10-3.13 before submitting.
+
+**Testing with Different Log Levels:**
+```bash
+# Test with debug logging
+LOG_LEVEL=DEBUG python examples/example.py
+
+# Test with warning level only
+LOG_LEVEL=WARNING python examples/example.py
+```
 
 ## Releases
 

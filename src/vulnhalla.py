@@ -17,6 +17,9 @@ from src.utils.common_functions import (
 # Script that holds your GPT logic
 from src.llm.llm_analyzer import LLMAnalyzer
 from src.utils.config_validator import validate_and_exit_on_error
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class IssueAnalyzer:
@@ -79,7 +82,7 @@ class IssueAnalyzer:
         issues_statistics: Dict[str, List[Dict[str, str]]] = {}
         dbs_path = get_all_dbs(dbs_folder)
         for curr_db in dbs_path:
-            print("Processing DB:", curr_db)
+            logger.info("Processing DB: %s", curr_db)
             function_tree_csv = os.path.join(curr_db, "FunctionTree.csv")
             issues_file = os.path.join(curr_db, "issues.csv")
 
@@ -91,7 +94,7 @@ class IssueAnalyzer:
                     issue["db_path"] = curr_db
                     issues_statistics[issue["name"]].append(issue)
             else:
-                print("Error: Execute run_codeql_queries.py first!")
+                logger.error("Error: Execute run_codeql_queries.py first!")
                 continue
 
         return issues_statistics
@@ -420,8 +423,8 @@ class IssueAnalyzer:
         false_issues = []
         more_data = []
 
-        print(f"Found {len(issues_of_type)} issues of type {issue_type}")
-        print()
+        logger.info("Found %d issues of type %s", len(issues_of_type), issue_type)
+        logger.info("")
         for issue in issues_of_type:
             issue_id += 1
             self.db_path = issue["db_path"]
@@ -447,7 +450,7 @@ class IssueAnalyzer:
                 int(issue["start_line"])
             )
             if not current_function:
-                print("issue", issue_id, "Can't find the function or function is too big!")
+                logger.warning("issue %s: Can't find the function or function is too big!", issue_id)
                 continue
 
             snippet = code_file_contents[int(issue["start_line"]) - 1][
@@ -503,16 +506,16 @@ class IssueAnalyzer:
                 more_data.append(issue_id)
                 status = "LLM needs More Data"
 
-            # Print issue status
-            print("Issue ID:", issue_id,", LLM decision: → ", status)
+            # Log issue status
+            logger.info("Issue ID: %s, LLM decision: → %s", issue_id, status)
 
-        print()
-        print("Issue type:", issue_type)
-        print("Total issues:", len(issues_of_type))
-        print("True Positive:", len(real_issues))
-        print("False Positive:", len(false_issues))
-        print("LLM needs More Data:", len(more_data))
-        print()
+        logger.info("")
+        logger.info("Issue type: %s", issue_type)
+        logger.info("Total issues: %d", len(issues_of_type))
+        logger.info("True Positive: %d", len(real_issues))
+        logger.info("False Positive: %d", len(false_issues))
+        logger.info("LLM needs More Data: %d", len(more_data))
+        logger.info("")
 
     def run(self) -> None:
         """
@@ -538,14 +541,18 @@ class IssueAnalyzer:
         total_issues = 0
         for issue_type in issues_statistics:
             total_issues += len(issues_statistics[issue_type])
-        print("Total issues found:", total_issues)
-        print()
+        logger.info("Total issues found: %d", total_issues)
+        logger.info("")
 
         # Process all issues, type by type
         for issue_type in issues_statistics.keys():
             self.process_issue_type(issue_type, issues_statistics[issue_type], llm_analyzer)
 
 if __name__ == '__main__':
+    # Initialize logging
+    from src.utils.logger import setup_logging
+    setup_logging()
+    
     # Loads configuration from .env file
     # Or use: analyzer = IssueAnalyzer(lang="c", config={...})
     analyzer = IssueAnalyzer(lang="c")

@@ -20,8 +20,13 @@ from src.codeql.fetch_repos import fetch_codeql_dbs
 from src.codeql.run_codeql_queries import compile_and_run_codeql_queries
 from src.utils.config import get_codeql_path
 from src.utils.config_validator import validate_and_exit_on_error
+from src.utils.logger import setup_logging, get_logger
 from src.vulnhalla import IssueAnalyzer
 from src.ui.ui_app import main as ui_main
+
+# Initialize logging
+setup_logging()
+logger = get_logger(__name__)
 
 
 def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int = 16, open_ui: bool = True) -> None:
@@ -33,24 +38,24 @@ def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int =
         threads: Number of threads for CodeQL operations. Defaults to 16.
         open_ui: Whether to open the UI after completion. Defaults to True.
     """
-    print("🚀 Starting Vulnhalla Analysis Pipeline")
-    print("=" * 60)
+    logger.info("🚀 Starting Vulnhalla Analysis Pipeline")
+    logger.info("=" * 60)
     
     # Validate configuration before starting
     validate_and_exit_on_error()
     
     # Step 1: Fetch CodeQL databases
-    print("\n[1/4] Fetching CodeQL Databases")
-    print("-" * 60)
+    logger.info("\n[1/4] Fetching CodeQL Databases")
+    logger.info("-" * 60)
     if repo:
-        print(f"Fetching database for: {repo}")
+        logger.info("Fetching database for: %s", repo)
         fetch_codeql_dbs(lang=lang, threads=threads, single_repo=repo)
     else:
-        print(f"Fetching top repositories for language: {lang}")
+        logger.info("Fetching top repositories for language: %s", lang)
         fetch_codeql_dbs(lang=lang, max_repos=100, threads=4)
     # Step 2: Run CodeQL queries
-    print("\n[2/4] Running CodeQL Queries")
-    print("-" * 60)
+    logger.info("\n[2/4] Running CodeQL Queries")
+    logger.info("-" * 60)
     compile_and_run_codeql_queries(
         codeql_bin=get_codeql_path(),
         lang=lang,
@@ -58,20 +63,20 @@ def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int =
         timeout=300
     )
     # Step 3: Classify results with LLM
-    print("\n[3/4] Classifying Results with LLM")
-    print("-" * 60)
+    logger.info("\n[3/4] Classifying Results with LLM")
+    logger.info("-" * 60)
     analyzer = IssueAnalyzer(lang=lang)
     analyzer.run()
     # Step 4: Open UI (if requested)
     if open_ui:
-        print("\n[4/4] Opening UI")
-        print("-" * 60)
-        print("✅ Pipeline completed successfully!")
-        print("Opening results UI...")
+        logger.info("\n[4/4] Opening UI")
+        logger.info("-" * 60)
+        logger.info("✅ Pipeline completed successfully!")
+        logger.info("Opening results UI...")
         ui_main()
     else:
-        print("\n✅ Pipeline completed successfully!")
-        print("View results with: python src/ui/ui_app.py")
+        logger.info("\n✅ Pipeline completed successfully!")
+        logger.info("View results with: python src/ui/ui_app.py")
 
 
 def main_analyze() -> None:
@@ -86,9 +91,9 @@ def main_analyze() -> None:
     if len(sys.argv) > 1:
         repo = sys.argv[1]
         if "/" not in repo:
-            print("❌ Error: Repository must be in format 'org/repo'")
-            print("   Example: python src/pipeline.py redis/redis")
-            print("   Or run without arguments to analyze top repositories")
+            logger.error("❌ Error: Repository must be in format 'org/repo'")
+            logger.error("   Example: python src/pipeline.py redis/redis")
+            logger.error("   Or run without arguments to analyze top repositories")
             sys.exit(1)
     analyze_pipeline(repo=repo)
 

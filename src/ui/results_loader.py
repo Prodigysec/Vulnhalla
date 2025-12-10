@@ -16,6 +16,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.ui.models import Issue
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ResultsLoader:
@@ -159,7 +162,7 @@ class ResultsLoader:
             with open(path, "r", encoding="utf-8") as f:
                 return json.loads(f.read().replace("\n", "\\n"))
         except json.JSONDecodeError as e:
-            print("JSON error:", e)
+            logger.error("JSON error parsing %s: %s", path, e)
             return None
     
     @staticmethod

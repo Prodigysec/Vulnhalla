@@ -12,23 +12,6 @@ Vulnhalla automates the complete security analysis pipeline:
 3. **Running CodeQL queries** on those databases to detect security or code-quality issues
 4. **Post-processing** the results with an LLM (ChatGPT, Claude, etc.) to classify and filter issues
 
----
-
-### Key Modules
-
-- **`src/codeql/fetch_repos.py`**: Fetches GitHub repositories and downloads their CodeQL databases. Creates `output/zip_dbs` and `output/databases/<lang>/<org>/<repo>` folders.
-
-- **`src/codeql/run_codeql_queries.py`**: Pre-compiles `.ql` queries in `data/queries/<LANG>/tools` and `data/queries/<LANG>/issues`, then analyzes databases in `output/databases/<LANG>/`. Outputs `issues.csv` per database.
-
-- **`src/llm/llm_analyzer.py`**: Handles communication with LLMs (OpenAI, Azure, Gemini, etc.) to classify results. Includes prompt templates and API logic.
-
-- **`src/vulnhalla.py`**: Main orchestrator that aggregates results and uses LLM for classification. Organizes outputs by type/severity and stores in `output/results/<LANG>/<ISSUE_TYPE>/`.
-
-- **`src/ui/ui_app.py`**: User Interface (UI) for browsing and exploring analysis results with interactive features.
-
-- **`src/pipeline.py`**: Unified pipeline orchestrator that runs the complete workflow (fetch, query, classify, UI) in a single command.
-
----
 
 ## 🚀 Quick Start
 
@@ -77,6 +60,12 @@ MODEL=gpt-4o
 OPENAI_API_KEY=your-api-key-here
 LLM_TEMPERATURE=0.2
 LLM_TOP_P=0.2
+
+# Optional: Logging Configuration
+LOG_LEVEL=INFO                  # DEBUG, INFO, WARNING, ERROR
+LOG_FILE=                       # Optional: path to log file (e.g., logs/vulnhalla.log)
+LOG_FORMAT=default              # default or json
+# LOG_VERBOSE_CONSOLE=false     # If true, WARNING/ERROR use full format (timestamp - logger - level - message)
 ```
 
 > **📖 For complete configuration reference:** See [Configuration Reference](#-configuration-reference) below for all supported providers (OpenAI, Azure, Gemini), required/optional variables, and detailed examples.
@@ -306,6 +295,11 @@ All configuration is managed through environment variables in your `.env` file. 
 | `GITHUB_TOKEN` | - | GitHub API token for higher rate limits. Get from [GitHub Settings > Tokens](https://github.com/settings/tokens) |
 | `LLM_TEMPERATURE` | `0.2` | LLM temperature (0.0-2.0). Lower = more deterministic. **Recommended: keep at 0.2** |
 | `LLM_TOP_P` | `0.2` | LLM top-p sampling (0.0-1.0). Lower = more focused. **Recommended: keep at 0.2** |
+| `LOG_LEVEL` | `INFO` | Logging level: `DEBUG`, `INFO`, `WARNING`, or `ERROR`. Controls verbosity of console output |
+| `LOG_FILE` | - | Optional path to log file (e.g., `logs/vulnhalla.log`). If set, logs are written to both console and file. File logging uses DEBUG level for detailed output |
+| `LOG_FORMAT` | `default` | Log format style: `default` (human-readable), or `json` (structured JSON format) |
+| `LOG_VERBOSE_CONSOLE` | `false` | If `true`, WARNING/ERROR/CRITICAL use full format (timestamp - logger - level - message). Default: WARNING/ERROR use simple format (LEVEL - message), INFO always minimal (message only) |
+| `THIRD_PARTY_LOG_LEVEL` | `ERROR` | Log level for third-party libraries (LiteLLM, urllib3, requests). Options: `DEBUG`, `INFO`, `WARNING`, `ERROR`. Default suppresses most third-party noise |
 
 > **⚠️ Important:** Do not increase `LLM_TEMPERATURE` or `LLM_TOP_P` unless you fully understand the impact. Lower values keep the model stable and deterministic, which is critical for security analysis. Higher values may cause the model to become inconsistent, creative, or hallucinate results.
 

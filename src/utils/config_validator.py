@@ -6,11 +6,15 @@ Validates configuration at startup to catch errors early with clear messages.
 """
 
 import os
+from shlex import join
 import shutil
 from typing import List, Optional, Tuple
 from typing import Dict, Any
 from src.utils.config import get_codeql_path
 from src.utils.llm_config import load_llm_config, ALLOWED_LLM_PROVIDERS
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def is_placeholder_api_key(api_key: Optional[str]) -> bool:
@@ -268,15 +272,17 @@ def validate_and_exit_on_error() -> None:
     is_valid, errors = validate_all_config()
     
     if not is_valid:
-        print("\n" + "=" * 60)
-        print("⚠️ Configuration Validation Failed")
-        print("=" * 60)
-        print()
-        for error in errors:
-            print(error)
-            print()
-        print("=" * 60)
-        print("\nPlease fix the configuration errors above and try again.")
-        print("See README.md for configuration reference.\n")
+        errors_block = "\n\n".join(errors)
+        message = f"""
+============================================================
+⚠️ Configuration Validation Failed
+============================================================
+{errors_block}
+============================================================
+Please fix the configuration errors above and try again.
+See README.md for configuration reference.
+============================================================
+"""
+        logger.error(message)
         exit(1)
 
