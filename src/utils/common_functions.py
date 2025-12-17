@@ -9,7 +9,7 @@ that are shared across multiple parts of the project.
 import os
 import zipfile
 import yaml
-from typing import List, Dict
+from typing import Any, Dict, List 
 
 from src.utils.exceptions import VulnhallaError, CodeQLError
 
@@ -139,7 +139,7 @@ def read_file_lines_from_zip(zip_path: str, file_path_in_zip: str) -> str:
         raise CodeQLError(f"OS error while reading ZIP file: {zip_path}") from e
 
 
-def read_yml(file_path: str) -> Dict:
+def read_yml(file_path: str) -> Dict[str, Any]:
     """
     Read and parse a YAML file, returning its data as a Python dictionary.
 
@@ -147,7 +147,7 @@ def read_yml(file_path: str) -> Dict:
         file_path (str): The path to the YAML file.
 
     Returns:
-        Dict: The YAML data as a dictionary.
+        Dict[str, Any]: The YAML data as a dictionary.
     
     Raises:
         VulnhallaError: If file cannot be read or YAML parsing fails.

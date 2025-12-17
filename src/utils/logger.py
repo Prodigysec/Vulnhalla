@@ -122,7 +122,7 @@ def setup_logging(
                 message, and can optionally include extra fields such as progress.
                 """
                 
-                def format(self, record):
+                def format(self, record: logging.LogRecord) -> str:
                     """Format a LogRecord as a JSON string.
 
                     Args:
@@ -165,7 +165,7 @@ def setup_logging(
             while WARNING/ERROR/CRITICAL messages can use either a simple format
             (LEVEL - message) or a full format with timestamp and logger name.
             """
-            def __init__(self, full_format, simple_format, datefmt=None, verbose=False):
+            def __init__(self, full_format: str, simple_format: str, datefmt: Optional[str] = None, verbose: bool = False) -> None:
                 # Initialize with simple format as base (for WARNING/ERROR default behavior)
                 super().__init__(simple_format, datefmt)
                 self.full_format = full_format
@@ -173,7 +173,7 @@ def setup_logging(
                 self.verbose = verbose
                 self._full_formatter = logging.Formatter(full_format, datefmt) if verbose else None
             
-            def format(self, record):
+            def format(self, record: logging.LogRecord) -> str:
                 """Format a LogRecord using level-based formatting.
 
                 INFO records are formatted as the plain message. Higher-severity
@@ -191,7 +191,7 @@ def setup_logging(
                     return record.getMessage()
                 # For WARNING, ERROR, CRITICAL
                 else:
-                    if self.verbose:
+                    if self.verbose and self._full_formatter:
                         # Use full format with timestamp when verbose mode is enabled
                         return self._full_formatter.format(record)
                     else:

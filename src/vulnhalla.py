@@ -13,7 +13,7 @@ import os
 import csv
 import re
 import json
-from typing import Dict, List, Optional, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 # Import from common
 from src.utils.common_functions import (
@@ -208,7 +208,7 @@ class IssueAnalyzer:
         self,
         db_path: str,
         code_path: str
-    ):
+    ) -> Callable[[re.Match], str]:
         """
         Creates and returns a 'replacement' callback function that can be used with
         `re.sub` to transform bracketed references (like [[var|"file://path:line:..."]])
@@ -405,18 +405,18 @@ class IssueAnalyzer:
 
     def append_extra_functions(
         self,
-        extra_lines: List[tuple],
+        extra_lines: List[tuple[str, str, str]],
         function_tree_file: str,
         src_zip_path: str,
         code: str,
         current_function: Dict[str, str]
-    ) -> tuple[str, list[dict[str, str]]]:
+    ) -> Tuple[str, List[Dict[str, str]]]:
         """
         Searches for additional functions (via bracket references) outside the current one
         and appends their code to the main snippet.
 
         Args:
-            extra_lines (List[tuple]): All matches of additional references.
+            extra_lines (List[tuple[str, str, str]]): All matches of additional references.
             function_tree_file (str): Path to 'FunctionTree.csv'.
             src_zip_path (str): Path to the DB's src.zip file.
             code (str): The existing code snippet.

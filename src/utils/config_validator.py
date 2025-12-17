@@ -8,8 +8,7 @@ Validates configuration at startup to catch errors early with clear messages.
 import os
 from shlex import join
 import shutil
-from typing import List, Optional, Tuple
-from typing import Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 from src.utils.config import get_codeql_path
 from src.utils.llm_config import load_llm_config, ALLOWED_LLM_PROVIDERS
 from src.utils.logger import get_logger
