@@ -12,7 +12,7 @@ Example CLI usage:
     python fetch_repos.py myOrgName/myRepoName
 """
 
-import os
+from pathlib import Path
 import sys
 import json
 import time
@@ -177,20 +177,21 @@ def custom_download(url: str, local_filename: str, max_attempts: int = 5, attemp
         CodeQLConfigError: On 4xx client errors that indicate configuration issues (e.g., invalid token).
     """
     # Check if file exists and validate it
+    local_file_path = Path(local_filename)
     file_size = 0
-    if os.path.exists(local_filename) and not force_full_download:
-        file_size = os.path.getsize(local_filename)
+    if local_file_path.exists() and not force_full_download:
+        file_size = local_file_path.stat().st_size
         
         # Validate if existing file is a valid ZIP
         if file_size > 0:
             try:
-                with zipfile.ZipFile(local_filename, "r") as zip_ref:
+                with zipfile.ZipFile(str(local_file_path), "r") as zip_ref:
                     zip_ref.testzip()  # Test if ZIP is valid
             except (zipfile.BadZipFile, zipfile.LargeZipFile):
                 # File is corrupted, delete it and start again
                 logger.warning("Existing file %s is corrupted. Deleting and starting fresh.", local_filename)
                 try:
-                    os.remove(local_filename)
+                    local_file_path.unlink()
                     file_size = 0
                 except (PermissionError, OSError) as e:
                     raise CodeQLError(f"Failed to delete corrupted file {local_filename}: {e}") from e
@@ -243,7 +244,7 @@ def custom_download(url: str, local_filename: str, max_attempts: int = 5, attemp
             logger.debug("File size: %d bytes (%.2f MB)", total_size, total_size / 1_000_000)
 
             mode = "ab" if (file_size > 0 and not force_full_download) else "wb"
-            with open(local_filename, mode) as file:
+            with local_file_path.open(mode) as file:
                 downloaded_size = file_size
                 last_update = time.time()
 
@@ -329,25 +330,25 @@ def multi_thread_db_download(url: str, repo_name: str, threads: int = 2) -> str:
         CodeQLError: If directory creation fails or download fails.
         CodeQLConfigError: On 4xx client errors during download (if using token).
     """
-    dest_dir = os.path.join("output/zip_dbs", LANG)
+    dest_dir = Path("output/zip_dbs") / LANG
     try:
-        os.makedirs(dest_dir, exist_ok=True)
+        dest_dir.mkdir(parents=True, exist_ok=True)
     except PermissionError as e:
         raise CodeQLError(f"Permission denied creating download directory: {dest_dir}") from e
     except OSError as e:
         raise CodeQLError(f"OS error creating download directory: {dest_dir}") from e
-    dest = os.path.join(dest_dir, repo_name + ".zip")
+    dest = dest_dir / f"{repo_name}.zip"
 
     request_args = {"headers": {"Accept": "application/zip"}}
 
     token = get_github_token()
     if token:
-        custom_download(url, dest)
-        return dest
+        custom_download(url, str(dest))
+        return str(dest)
 
     validate_rate_limit(threads)
     downloader = SmartDL(
-        url, dest, request_args=request_args, threads=threads, progress_bar=False, verify=False
+        url, str(dest), request_args=request_args, threads=threads, progress_bar=False, verify=False
     )
     downloader.start()
     return downloader.get_dest()
@@ -364,8 +365,9 @@ def unzip_file(zip_path: str, extract_to: str) -> None:
     Raises:
         CodeQLError: If ZIP file is invalid, corrupted, or extraction fails.
     """
+    extract_to_path = Path(extract_to)
     try:
-        os.makedirs(extract_to, exist_ok=True)
+        extract_to_path.mkdir(parents=True, exist_ok=True)
     except PermissionError as e:
         raise CodeQLError(f"Permission denied creating extraction directory: {extract_to}") from e
     except OSError as e:
@@ -373,7 +375,7 @@ def unzip_file(zip_path: str, extract_to: str) -> None:
     
     try:
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(extract_to)
+            zip_ref.extractall(str(extract_to_path))
     except zipfile.BadZipFile as e:
         raise CodeQLError(f"Invalid or corrupted ZIP file: {zip_path}") from e
     except zipfile.LargeZipFile as e:
@@ -505,25 +507,27 @@ def download_and_extract_db(repo: Dict[str, Any], threads: int, extract_folder: 
     logger.info("Downloading repo %s/%s", org_name, repo_name)
     zip_path = multi_thread_db_download(repo["db_url"], repo_name, threads)
 
-    db_path = os.path.join(extract_folder, repo_name)
-    unzip_file(zip_path, db_path)
+    db_path = Path(extract_folder) / repo_name
+    unzip_file(zip_path, str(db_path))
     time.sleep(1)  # Let file system sync
 
     # Rename the extracted folder if needed (with retry for Windows file locking)
     source_path = None
-    target_path = os.path.join(db_path, repo_name)
+    target_path = db_path / repo_name
     
-    if os.path.exists(os.path.join(db_path, "codeql_db")):
-        source_path = os.path.join(db_path, "codeql_db")
-    elif os.path.exists(os.path.join(db_path, LANG)):
-        source_path = os.path.join(db_path, LANG)
+    codeql_db_path = db_path / "codeql_db"
+    lang_path = db_path / LANG
+    if codeql_db_path.exists():
+        source_path = codeql_db_path
+    elif lang_path.exists():
+        source_path = lang_path
     
-    if source_path and not os.path.exists(target_path):
+    if source_path and not target_path.exists():
         # Retry rename with delays (Windows may lock files temporarily)
         for attempt in range(3):
             try:
                 time.sleep(0.5 * (attempt + 1))  # Increasing delay: 0.5s, 1s, 1.5s
-                os.rename(source_path, target_path)
+                source_path.rename(target_path)
                 break
             except (PermissionError, OSError) as e:
                 if attempt == 2:
@@ -558,7 +562,7 @@ def download_db_by_name(repo_name: str, lang: str, threads: int) -> None:
     if not repo_db:
         logger.warning("No %s DB found for %s", lang, repo_name)
         return
-    download_and_extract_db(repo_db[0], threads, os.path.join("output/databases", lang))
+    download_and_extract_db(repo_db[0], threads, str(Path("output/databases") / lang))
 
 
 def fetch_codeql_dbs(
@@ -588,21 +592,23 @@ def fetch_codeql_dbs(
         CodeQLConfigError: On 4xx client errors (invalid token, permissions, etc.).
     """
     # Ensure needed directories exist
-    db_folder = os.path.join("output/databases", lang)
+    db_folder_path = Path("output/databases") / lang
     try:
-        os.makedirs(db_folder, exist_ok=True)
+        db_folder_path.mkdir(parents=True, exist_ok=True)
     except PermissionError as e:
-        raise CodeQLError(f"Permission denied creating database directory: {db_folder}") from e
+        raise CodeQLError(f"Permission denied creating database directory: {db_folder_path}") from e
     except OSError as e:
-        raise CodeQLError(f"OS error creating database directory: {db_folder}") from e
+        raise CodeQLError(f"OS error creating database directory: {db_folder_path}") from e
+    db_folder = str(db_folder_path)
     
-    zip_folder = os.path.join("output/zip_dbs", lang)
+    zip_folder_path = Path("output/zip_dbs") / lang
     try:
-        os.makedirs(zip_folder, exist_ok=True)
+        zip_folder_path.mkdir(parents=True, exist_ok=True)
     except PermissionError as e:
-        raise CodeQLError(f"Permission denied creating ZIP directory: {zip_folder}") from e
+        raise CodeQLError(f"Permission denied creating ZIP directory: {zip_folder_path}") from e
     except OSError as e:
-        raise CodeQLError(f"OS error creating ZIP directory: {zip_folder}") from e
+        raise CodeQLError(f"OS error creating ZIP directory: {zip_folder_path}") from e
+    zip_folder = str(zip_folder_path)
 
     if single_repo:
         # Download only that specific repository
@@ -622,9 +628,10 @@ def fetch_codeql_dbs(
         remaining = repos_db[i + 1 :]
         write_file_text(backup_file, json.dumps(remaining))
 
-    if os.path.exists(backup_file):
+    backup_file_path = Path(backup_file)
+    if backup_file_path.exists():
         try:
-            os.unlink(backup_file)
+            backup_file_path.unlink()
         except PermissionError as e:
             logger.warning("Permission denied deleting backup file %s: %s", backup_file, e)
         except OSError as e:

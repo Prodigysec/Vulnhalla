@@ -9,7 +9,7 @@ each finding is a true positive, false positive, or needs more data,
 and writes structured result files for further inspection (e.g. in the UI).
 """
 
-import os
+from pathlib import Path, PurePosixPath
 import csv
 import re
 import json
@@ -77,7 +77,7 @@ class IssueAnalyzer:
         ]
         issues = []
         try:
-            with open(file_name, "r", encoding="utf-8") as f:
+            with Path(file_name).open("r", encoding="utf-8") as f:
                 csv_reader = csv.DictReader(f, fieldnames=field_names)
                 for row in csv_reader:
                     issues.append(row)
@@ -108,12 +108,13 @@ class IssueAnalyzer:
         dbs_path = get_all_dbs(dbs_folder)
         for curr_db in dbs_path:
             logger.info("Processing DB: %s", curr_db)
-            function_tree_csv = os.path.join(curr_db, "FunctionTree.csv")
-            issues_file = os.path.join(curr_db, "issues.csv")
+            curr_db_path = Path(curr_db)
+            function_tree_csv = curr_db_path / "FunctionTree.csv"
+            issues_file = curr_db_path / "issues.csv"
 
-            if os.path.exists(function_tree_csv) and os.path.exists(issues_file):
+            if function_tree_csv.exists() and issues_file.exists():
                 # parse_issues_csv() raises CodeQLError on errors
-                issues = self.parse_issues_csv(issues_file)
+                issues = self.parse_issues_csv(str(issues_file))
                 for issue in issues:
                     if issue["name"] not in issues_statistics:
                         issues_statistics[issue["name"]] = []
@@ -149,7 +150,7 @@ class IssueAnalyzer:
         smallest_range = float('inf')
 
         try:
-            with open(function_tree_file, "r", encoding="utf-8") as f:
+            with Path(function_tree_file).open("r", encoding="utf-8") as f:
                 for row in f:
                     if file_path in row:
                         fields = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', row.strip())
@@ -240,13 +241,13 @@ class IssueAnalyzer:
                 full_path = file_path[1:] if file_path.startswith("/") else file_path
 
             code_text = read_file_lines_from_zip(
-                os.path.join(db_path, "src.zip"),
+                str(Path(db_path) / "src.zip"),
                 full_path
             )
             code_lines = code_text.split("\n")
             snippet = code_lines[int(line_number) - 1][int(start_offset) - 1:int(end_offset)]
 
-            file_name = os.path.split(file_path)[1]
+            file_name = PurePosixPath(file_path).name
             return f"{variable} '{snippet}' ({file_name}:{int(line_number)})"
 
         return replacement
@@ -278,20 +279,19 @@ class IssueAnalyzer:
         lang_folder = "cpp" if self.lang == "c" else self.lang
 
         # Try to read an existing template specific to the issue name
-        hints_path = os.path.join("data/templates", lang_folder, issue["name"] + ".template")
-        if not os.path.exists(hints_path):
-            hints_path = os.path.join("data/templates", lang_folder, "general.template")
+        templates_base = Path("data/templates") / lang_folder
+        hints_path = templates_base / f"{issue['name']}.template"
+        if not hints_path.exists():
+            hints_path = templates_base / "general.template"
 
-        hints = read_file_utf8(hints_path)
+        hints = read_file_utf8(str(hints_path))
 
         # Read the larger general template
-        template_path = os.path.join("data/templates", lang_folder, "template.template")
-        template = read_file_utf8(template_path)
+        template_path = templates_base / "template.template"
+        template = read_file_utf8(str(template_path))
 
-        location = "look at {file_line} with '{snippet}'".format(
-            file_line=os.path.split(issue["file"])[1] + ":" + str(int(issue["start_line"]) - 1),
-            snippet=snippet
-        )
+        file_name = PurePosixPath(issue["file"]).name
+        location = f"look at {file_name}:{int(issue['start_line']) - 1} with '{snippet}'"
 
         # Special case for "Use of object after its lifetime has ended"
         if issue["name"] == "Use of object after its lifetime has ended":
@@ -322,9 +322,10 @@ class IssueAnalyzer:
             VulnhallaError: If directory creation fails (permission denied, etc.).
         """
         for d in dirs:
-            if not os.path.exists(d):
+            dir_path = Path(d)
+            if not dir_path.exists():
                 try:
-                    os.makedirs(d, exist_ok=True)
+                    dir_path.mkdir(parents=True, exist_ok=True)
                 except PermissionError as e:
                     raise VulnhallaError(f"Permission denied creating directory: {d}") from e
                 except OSError as e:
@@ -365,8 +366,8 @@ class IssueAnalyzer:
             "prompt": prompt
         }, ensure_ascii=False)
 
-        raw_output_file = os.path.join(results_folder, f"{issue_id}_raw.json")
-        write_file_ascii(raw_output_file, raw_data)
+        raw_output_file = Path(results_folder) / f"{issue_id}_raw.json"
+        write_file_ascii(str(raw_output_file), raw_data)
 
     def format_llm_messages(self, messages: List[str]) -> str:
         """
@@ -476,8 +477,8 @@ class IssueAnalyzer:
             VulnhallaError: If result files cannot be written.
             LLMError: If LLM analysis fails.
         """
-        results_folder = os.path.join("output/results", self.lang, issue_type.replace(" ", "_").replace("/", "-"))
-        self.ensure_directories_exist([results_folder])
+        results_folder = Path("output/results") / self.lang / issue_type.replace(" ", "_").replace("/", "-")
+        self.ensure_directories_exist([str(results_folder)])
 
         issue_id = 0
         real_issues = []
@@ -489,8 +490,9 @@ class IssueAnalyzer:
         for issue in issues_of_type:
             issue_id += 1
             self.db_path = issue["db_path"]
-            db_yml_path = os.path.join(self.db_path, "codeql-database.yml")
-            db_yml = read_yml(db_yml_path)
+            db_path_obj = Path(self.db_path)
+            db_yml_path = db_path_obj / "codeql-database.yml"
+            db_yml = read_yml(str(db_yml_path))
             self.code_path = db_yml["sourceLocationPrefix"]
 
             # Adjust Windows / Linux path references
@@ -499,8 +501,8 @@ class IssueAnalyzer:
             else:
                 self.code_path = self.code_path[1:]
 
-            function_tree_file = os.path.join(self.db_path, "FunctionTree.csv")
-            src_zip_path = os.path.join(self.db_path, "src.zip")
+            function_tree_file = str(db_path_obj / "FunctionTree.csv")
+            src_zip_path = str(db_path_obj / "src.zip")
 
             full_file_path = self.code_path + issue["file"]
             code_file_contents = read_file_lines_from_zip(src_zip_path, full_file_path).split("\n")
@@ -552,8 +554,8 @@ class IssueAnalyzer:
                 self.db_path
             )
             gpt_result = self.format_llm_messages(messages)
-            final_file = os.path.join(results_folder, f"{issue_id}_final.json")
-            write_file_ascii(final_file, gpt_result)
+            final_file = Path(results_folder) / f"{issue_id}_final.json"
+            write_file_ascii(str(final_file), gpt_result)
 
             # Check status code in LLM content
             status = self.determine_issue_status(content)
@@ -599,7 +601,7 @@ class IssueAnalyzer:
         llm_analyzer = LLMAnalyzer()
         llm_analyzer.init_llm_client(config=self.config)
 
-        dbs_folder = os.path.join("output/databases", self.lang)
+        dbs_folder = str(Path("output/databases") / self.lang)
 
         # Gather issues from all DBs
         issues_statistics = self.collect_issues_from_databases(dbs_folder)

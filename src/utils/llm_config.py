@@ -7,13 +7,14 @@ Supports multiple providers via LiteLLM.
 """
 
 import os
+from pathlib import Path
 from typing import Dict, Optional, Any
 from dotenv import load_dotenv
 
 # Load .env file if it exists, otherwise try .env.example
-if os.path.exists(".env"):
+if Path(".env").exists():
     load_dotenv(".env")
-elif os.path.exists(".env.example"):
+elif Path(".env.example").exists():
     load_dotenv(".env.example")
 
 # Allowed LLM providers
@@ -143,7 +144,7 @@ def load_llm_config() -> Dict[str, Any]:
         # Vertex AI uses GCP credentials (service account JSON or GOOGLE_APPLICATION_CREDENTIALS)
         # No API key needed, but we set a placeholder to pass validation
         gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if not gcp_creds and not os.path.exists(os.path.expanduser("~/.config/gcloud/application_default_credentials.json")):
+        if not gcp_creds and not Path("~/.config/gcloud/application_default_credentials.json").expanduser().exists():
             raise ValueError(
                 "GCP credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS or run 'gcloud auth application-default login'"
             )

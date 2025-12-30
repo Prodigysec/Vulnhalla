@@ -65,11 +65,11 @@ def main():
             pip_exe = [str(PROJECT_ROOT / "venv/Scripts/pip.exe")]
         else:  # Unix/macOS/Linux
             pip_exe = [str(PROJECT_ROOT / "venv/bin/pip")]
-        logger.info("Using virtual environment...")
+        logger.debug("Using virtual environment...")
     else:
         # Use system pip
         pip_exe = [sys.executable, "-m", "pip"]
-        logger.info("Installing to current Python environment...")
+        logger.debug("Installing to current Python environment...")
     
     if check_dependencies_installed():
         logger.info("✅ All dependencies are already installed! Skipping installation.")
@@ -92,14 +92,14 @@ def main():
         from src.utils.config_validator import find_codeql_executable
         
         codeql_path = get_codeql_path()
-        logger.info("Checking CodeQL path: %s", codeql_path)
+        logger.debug("Checking CodeQL path: %s", codeql_path)
         
         # Use helper function to find executable
         codeql_cmd = find_codeql_executable()
         
         if codeql_cmd:
             if codeql_path == "codeql":
-                logger.info("🔍 Checking if 'codeql' is in PATH...")
+                logger.debug("🔍 Checking if 'codeql' is in PATH...")
                 logger.info("✅ Found in PATH: %s", codeql_cmd)
             else:
                 logger.info("✅ Found CodeQL path: %s", codeql_cmd)
@@ -110,14 +110,14 @@ def main():
                 codeql_path_clean = codeql_path.strip('"').strip("'")
                 logger.error("❌ Path does not exist: %s", codeql_path_clean)
                 if os.name == 'nt':
-                    logger.info("Also checked: %s.cmd", codeql_path_clean)
+                    logger.debug("Also checked: %s.cmd", codeql_path_clean)
             else:
-                logger.info("🔍 Checking if 'codeql' is in PATH...")
+                logger.debug("🔍 Checking if 'codeql' is in PATH...")
                 logger.error("❌ 'codeql' not found in PATH")
     except Exception as e:
         # Fallback to checking PATH
         logger.error("❌ Error loading config: %s", e)
-        logger.info("🔍 Falling back to PATH check...")
+        logger.debug("🔍 Falling back to PATH check...")
         codeql_cmd = shutil.which("codeql")
         if codeql_cmd:
             logger.info("✅ Found in PATH: %s", codeql_cmd)
@@ -152,7 +152,7 @@ def main():
     # Optional: Validate CodeQL configuration if .env file exists
     env_file = PROJECT_ROOT / ".env"
     if env_file.exists():
-        logger.info("\n🔍 Validating CodeQL configuration...")
+        logger.debug("\n🔍 Validating CodeQL configuration...")
         try:
             from src.utils.config_validator import validate_codeql_path
             is_valid, error = validate_codeql_path()

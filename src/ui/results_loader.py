@@ -3,11 +3,10 @@
 Results loader for parsing issue results from output/results/ directory.
 """
 
-import os
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Tuple
 
 # Add project root to path for imports
@@ -70,7 +69,7 @@ class ResultsLoader:
             Optional[List[Dict]]: List of message dictionaries, or None if parsing fails.
         """
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with path.open('r', encoding='utf-8') as f:
                 content = f.read()
         except FileNotFoundError as e:
             logger.error("File not found: %s", path)
@@ -170,7 +169,7 @@ class ResultsLoader:
             Optional[Dict]: Parsed JSON data as a dictionary, or None if parsing fails.
         """
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with path.open("r", encoding="utf-8") as f:
                 return json.loads(f.read().replace("\n", "\\n"))
         except FileNotFoundError as e:
             logger.error("File not found: %s", path)
@@ -217,7 +216,7 @@ class ResultsLoader:
         """
         func = raw_data.get("current_function", {})
         file_path = func.get("file", "")
-        return (os.path.basename(file_path) if file_path else "unknown", int(func.get("start_line", 0)))
+        return (PurePosixPath(file_path).name if file_path else "unknown", int(func.get("start_line", 0)))
     
     @staticmethod
     def _extract_repo_from_db_path(db_path: str) -> str:
@@ -240,9 +239,9 @@ class ResultsLoader:
         try:
             # DB path Structure: output/databases/<lang>/<org>/<repo>
             # Example: output/databases/c/redis/cpp
-            repo_name = os.path.basename(db_path)
-            parent_dir = os.path.dirname(db_path)
-            org_name = os.path.basename(parent_dir)
+            db_path_obj = Path(db_path)
+            repo_name = db_path_obj.name
+            org_name = db_path_obj.parent.name
             
             if org_name and repo_name:
                 return f"{org_name}/{repo_name}"

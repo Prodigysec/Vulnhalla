@@ -6,7 +6,7 @@ working with CodeQL database directories, and other small I/O utilities
 that are shared across multiple parts of the project.
 """
 
-import os
+from pathlib import Path
 import zipfile
 import yaml
 from typing import Any, Dict, List 
@@ -28,7 +28,7 @@ def read_file(file_name: str) -> str:
         VulnhallaError: If file cannot be read (not found, permission denied, encoding error).
     """
     try:
-        with open(file_name, "r", encoding="utf-8") as f:
+        with Path(file_name).open("r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError as e:
         raise VulnhallaError(f"File not found: {file_name}") from e
@@ -52,7 +52,7 @@ def write_file_text(file_name: str, data: str) -> None:
         VulnhallaError: If file cannot be written (permission denied, disk full, etc.).
     """
     try:
-        with open(file_name, "w", encoding="utf-8") as f:
+        with Path(file_name).open("w", encoding="utf-8") as f:
             f.write(data)
     except PermissionError as e:
         raise VulnhallaError(f"Permission denied writing file: {file_name}") from e
@@ -74,7 +74,7 @@ def write_file_ascii(file_name: str, data: str) -> None:
         VulnhallaError: If file cannot be written (permission denied, disk full, etc.).
     """
     try:
-        with open(file_name, "wb") as f:
+        with Path(file_name).open("wb") as f:
             f.write(data.encode("ascii", "ignore"))
     except PermissionError as e:
         raise VulnhallaError(f"Permission denied writing file: {file_name}") from e
@@ -97,13 +97,13 @@ def get_all_dbs(dbs_folder: str) -> List[str]:
     """
     try:
         dbs_path = []
-        for folder in os.listdir(dbs_folder):
-            folder_path = os.path.join(dbs_folder, folder)
-            if os.path.isdir(folder_path):
-                for sub_folder in os.listdir(folder_path):
-                    curr_db_path = os.path.join(folder_path, sub_folder)
-                    if os.path.exists(os.path.join(curr_db_path, "codeql-database.yml")):
-                        dbs_path.append(curr_db_path)
+        dbs_folder_path = Path(dbs_folder)
+        for folder in dbs_folder_path.iterdir():
+            if folder.is_dir():
+                for sub_folder in folder.iterdir():
+                    curr_db_path = sub_folder
+                    if (curr_db_path / "codeql-database.yml").exists():
+                        dbs_path.append(str(curr_db_path))
         return dbs_path
     except PermissionError as e:
         raise CodeQLError(f"Permission denied accessing database folder: {dbs_folder}") from e
@@ -153,7 +153,7 @@ def read_yml(file_path: str) -> Dict[str, Any]:
         VulnhallaError: If file cannot be read or YAML parsing fails.
     """
     try:
-        with open(file_path, 'r', encoding="utf-8") as file:
+        with Path(file_path).open('r', encoding="utf-8") as file:
             return yaml.safe_load(file)
     except FileNotFoundError as e:
         raise VulnhallaError(f"YAML file not found: {file_path}") from e

@@ -7,13 +7,14 @@ Handles CodeQL path, GitHub token, and other non-LLM settings.
 """
 
 import os
+from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
 # Load .env file if it exists, otherwise try .env.example
-if os.path.exists(".env"):
+if Path(".env").exists():
     load_dotenv(".env")
-elif os.path.exists(".env.example"):
+elif Path(".env.example").exists():
     load_dotenv(".env.example")
 
 

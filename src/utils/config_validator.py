@@ -6,7 +6,7 @@ Validates configuration at startup to catch errors early with clear messages.
 """
 
 import os
-from shlex import join
+from pathlib import Path
 import shutil
 from typing import Any, Dict, List, Optional, Tuple
 from src.utils.config import get_codeql_path
@@ -67,17 +67,19 @@ def find_codeql_executable() -> Optional[str]:
             return shutil.which("codeql")
         
         # Custom path provided - check if file exists
-        if os.path.exists(codeql_path):
+        if Path(codeql_path).exists():
             return codeql_path
         
         # Check with extensions (Windows)
         if os.name == 'nt':
             # Check .cmd extension (CodeQL uses .cmd on Windows)
-            if os.path.exists(codeql_path + ".cmd"):
-                return codeql_path + ".cmd"
+            cmd_path = Path(f"{codeql_path}.cmd")
+            if cmd_path.exists():
+                return str(cmd_path)
             # Also check .exe for compatibility
-            if os.path.exists(codeql_path + ".exe"):
-                return codeql_path + ".exe"
+            exe_path = Path(f"{codeql_path}.exe")
+            if exe_path.exists():
+                return str(exe_path)
         
         return None
     except Exception:
@@ -119,10 +121,10 @@ def validate_codeql_path() -> Tuple[bool, Optional[str]]:
         return True, None
     
     # Custom path provided - check if file exists
-    if not os.path.exists(codeql_path):
+    if not Path(codeql_path).exists():
         # Check with .cmd extension (CodeQL uses .cmd on Windows)
         if os.name == 'nt':
-            if os.path.exists(codeql_path + ".cmd"):
+            if Path(f"{codeql_path}.cmd").exists():
                 return True, None
         
         return False, (
@@ -286,7 +288,6 @@ def validate_logging_config() -> Tuple[bool, Optional[str]]:
     log_file = os.getenv("LOG_FILE")
     if log_file:
         # Check if path contains invalid characters (basic validation)
-        from pathlib import Path
         try:
             # Try to create a Path object to validate format
             log_path = Path(log_file)

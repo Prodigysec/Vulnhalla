@@ -12,7 +12,7 @@ Example:
 """
 
 import subprocess
-import os
+from pathlib import Path
 
 # Make sure your common_functions module is in your PYTHONPATH or same folder
 from src.utils.common_functions import get_all_dbs
@@ -41,7 +41,8 @@ def pre_compile_ql(file_name: str, threads: int, codeql_bin: str) -> None:
         CodeQLConfigError: If CodeQL executable not found.
         CodeQLExecutionError: If query compilation fails.
     """
-    if not os.path.exists(file_name + "x"):
+    qlx_path = Path(str(file_name) + "x")
+    if not qlx_path.exists():
         try:
             subprocess.run(
                 [
@@ -81,11 +82,10 @@ def compile_all_queries(queries_folder: str, threads: int, codeql_bin: str) -> N
         CodeQLConfigError: If CodeQL executable not found.
         CodeQLExecutionError: If query compilation fails.
     """
-    for subdir, dirs, files in os.walk(queries_folder):
-        for file in files:
-            if os.path.splitext(file)[1].lower() == ".ql":
-                file_path = os.path.join(subdir, file)
-                pre_compile_ql(file_path, threads, codeql_bin)
+    queries_folder_path = Path(queries_folder)
+    for file_path in queries_folder_path.rglob("*"):
+        if file_path.is_file() and file_path.suffix.lower() == ".ql":
+            pre_compile_ql(str(file_path), threads, codeql_bin)
 
 
 def run_one_query(
@@ -181,14 +181,16 @@ def run_queries_on_db(
         CodeQLExecutionError: If query execution or database analysis fails.
     """
     # 1) Run each .ql in tools_folder individually
-    if os.path.isdir(tools_folder):
-        for file in os.listdir(tools_folder):
-            if os.path.splitext(file)[1].lower() == ".ql":
+    tools_folder_path = Path(tools_folder)
+    if tools_folder_path.is_dir():
+        for file_path in tools_folder_path.iterdir():
+            if file_path.is_file() and file_path.suffix.lower() == ".ql":
+                file_stem = file_path.stem
                 run_one_query(
-                    os.path.join(tools_folder, file),
+                    str(file_path),
                     curr_db,
-                    os.path.join(curr_db, os.path.splitext(file)[0] + ".bqrs"),
-                    os.path.join(curr_db, os.path.splitext(file)[0] + ".csv"),
+                    str(Path(curr_db) / f"{file_stem}.bqrs"),
+                    str(Path(curr_db) / f"{file_stem}.csv"),
                     threads,
                     codeql_bin
                 )
@@ -196,7 +198,8 @@ def run_queries_on_db(
         logger.warning("Tools folder '%s' not found. Skipping individual queries.", tools_folder)
 
     # 2) Run the entire queries folder in one go (bulk analysis)
-    if os.path.isdir(queries_folder):
+    queries_folder_path = Path(queries_folder)
+    if queries_folder_path.is_dir():
         try:
             subprocess.run(
                 [
@@ -207,7 +210,7 @@ def run_queries_on_db(
                     queries_folder,
                     f'--timeout={timeout}',
                     '--format=csv',
-                    f'--output={os.path.join(curr_db, "issues.csv")}',
+                    f'--output={str(Path(curr_db) / "issues.csv")}',
                     f'--threads={threads}'
                 ],
                 check=True,
@@ -254,9 +257,9 @@ def compile_and_run_codeql_queries(
     """
     # Setup paths
     queries_subfolder = "cpp" if lang == "c" else lang
-    queries_folder = os.path.join("data/queries", queries_subfolder, "issues")
-    tools_folder = os.path.join("data/queries", queries_subfolder, "tools")
-    dbs_folder = os.path.join("output/databases", lang)
+    queries_folder = str(Path("data/queries") / queries_subfolder / "issues")
+    tools_folder = str(Path("data/queries") / queries_subfolder / "tools")
+    dbs_folder = str(Path("output/databases") / lang)
 
     # Step 1: Pre-compile all queries
     compile_all_queries(tools_folder, threads, codeql_bin)
@@ -267,11 +270,12 @@ def compile_and_run_codeql_queries(
     
     # List what's in the folder for debugging
     try:
-        contents = os.listdir(dbs_folder)
+        dbs_folder_path = Path(dbs_folder)
+        contents = list(dbs_folder_path.iterdir())
         if len(contents) == 0:
             logger.warning("Database folder '%s' is empty. No databases to process.", dbs_folder)
             return
-        logger.debug("Found %d item(s) in database folder: %s", len(contents), contents)
+        logger.debug("Found %d item(s) in database folder: %s", len(contents), [str(c) for c in contents])
     except OSError as e:
         logger.warning("Cannot access database folder '%s': %s. No databases to process.", dbs_folder, e)
         return
@@ -287,9 +291,10 @@ def compile_and_run_codeql_queries(
         logger.info("Processing DB: %s", curr_db)
         
         # Check if database folder is empty
-        if os.path.isdir(curr_db):
+        curr_db_path = Path(curr_db)
+        if curr_db_path.is_dir():
             try:
-                if len(os.listdir(curr_db)) == 0:
+                if len(list(curr_db_path.iterdir())) == 0:
                     logger.warning("Database folder '%s' is empty. Skipping queries.", curr_db)
                     continue
             except OSError:
@@ -297,8 +302,8 @@ def compile_and_run_codeql_queries(
                 continue
         
         # If issues.csv was not generated yet, or FunctionTree.csv missing, run
-        if (not os.path.exists(os.path.join(curr_db, "FunctionTree.csv")) or
-                not os.path.exists(os.path.join(curr_db, "issues.csv"))):
+        if (not (curr_db_path / "FunctionTree.csv").exists() or
+                not (curr_db_path / "issues.csv").exists()):
             run_queries_on_db(
                 curr_db,
                 tools_folder,

@@ -8,6 +8,7 @@ All logic is now wrapped in the `LLMAnalyzer` class for improved organization.
 """
 
 import os
+from pathlib import Path
 import re
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -307,7 +308,7 @@ class LLMAnalyzer:
         """
         keys = ["function_name", "file", "start_line", "function_id", "end_line", "caller_id"]
         try:
-            with open(function_tree_file, "r", encoding="utf-8") as f:
+            with Path(function_tree_file).open("r", encoding="utf-8") as f:
                 while True:
                     function = f.readline()
                     if not function:
@@ -358,7 +359,7 @@ class LLMAnalyzer:
 
         for current_function in all_function:
             try:
-                with open(function_tree_file, "r", encoding="utf-8") as f:
+                with Path(function_tree_file).open("r", encoding="utf-8") as f:
                     while True:
                         row = f.readline()
                         if not row:
@@ -413,11 +414,11 @@ class LLMAnalyzer:
         Raises:
             CodeQLError: If Macros CSV file cannot be read (not found, permission denied, etc.).
         """
-        macro_file = os.path.join(curr_db, "Macros.csv")
+        macro_file = Path(curr_db) / "Macros.csv"
         keys = ["macro_name", "body"]
 
         try:
-            with open(macro_file, "r", encoding='utf-8') as f:
+            with macro_file.open("r", encoding='utf-8') as f:
                 while True:
                     macro = f.readline()
                     if not macro:
@@ -470,12 +471,12 @@ class LLMAnalyzer:
         Raises:
             CodeQLError: If GlobalVars CSV file cannot be read (not found, permission denied, etc.).
         """
-        global_var_file = os.path.join(curr_db, "GlobalVars.csv")
+        global_var_file = Path(curr_db) / "GlobalVars.csv"
         keys = ["global_var_name", "file", "start_line", "end_line"]
         var_name_only = global_var_name.split("::")[-1]
 
         try:
-            with open(global_var_file, "r", encoding="utf-8") as f:
+            with global_var_file.open("r", encoding="utf-8") as f:
                 while True:
                     line = f.readline()
                     if not line:
@@ -528,12 +529,12 @@ class LLMAnalyzer:
         Raises:
             CodeQLError: If Classes CSV file cannot be read (not found, permission denied, etc.).
         """
-        classes_file = os.path.join(curr_db, "Classes.csv")
+        classes_file = Path(curr_db) / "Classes.csv"
         keys = ["type", "class_name", "file", "start_line", "end_line", "simple_name"]
         class_name_only = class_name.split("::")[-1]
 
         try:
-            with open(classes_file, "r", encoding="utf-8") as f:
+            with classes_file.open("r", encoding="utf-8") as f:
                 while True:
                     row = f.readline()
                     if not row:
@@ -589,7 +590,7 @@ class LLMAnalyzer:
         caller_id = current_function["caller_id"].replace("\"", "").strip()
 
         try:
-            with open(function_tree_file, "r", encoding="utf-8") as f:
+            with Path(function_tree_file).open("r", encoding="utf-8") as f:
                 while True:
                     line = f.readline()
                     if not line:
@@ -643,9 +644,9 @@ class LLMAnalyzer:
         if not isinstance(current_function, dict):
             return str(current_function)
 
-        src_zip = os.path.join(db_path, "src.zip")
+        src_zip = Path(db_path) / "src.zip"
         file_path = current_function["file"].replace("\"", "")[1:]
-        code_file = read_file_lines_from_zip(src_zip, file_path)
+        code_file = read_file_lines_from_zip(str(src_zip), file_path)
         lines = code_file.split("\n")
 
         start_line = int(current_function["start_line"])
