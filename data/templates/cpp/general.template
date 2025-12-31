@@ -1,1 +1,1 @@
-1. Is this a real security issue that you can exploit?
+1. Is the security invariant violated if the value is externally controlled?
