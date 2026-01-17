@@ -7,7 +7,11 @@ This module coordinates the complete analysis pipeline:
 3. Classify results with LLM
 4. Open UI (optional)
 """
+# Ignore pydantic warnings
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Optional
@@ -49,7 +53,7 @@ def _log_exception_cause(e: Exception) -> None:
             logger.error("   Cause: %s", cause)
 
 
-def step1_fetch_codeql_dbs(lang: str, threads: int, repo: str) -> str:
+def step1_fetch_codeql_dbs(lang: str, threads: int, repo: str, force: bool = False) -> str:
     """
     Step 1: Fetch CodeQL databases from GitHub.
     
@@ -70,17 +74,17 @@ def step1_fetch_codeql_dbs(lang: str, threads: int, repo: str) -> str:
     logger.info("Fetching database for: %s", repo)
     
     try:
-        dbs_dir = fetch_codeql_dbs(lang=lang, threads=threads, repo_name=repo)
+        dbs_dir = fetch_codeql_dbs(lang=lang, threads=threads, repo_name=repo, force=force)
         if not dbs_dir:
             raise CodeQLError(f"No CodeQL databases were downloaded/found for {repo}")
         return dbs_dir
     except CodeQLConfigError as e:
-        logger.error("❌ Step 1: Configuration error while fetching CodeQL databases: %s", e)
+        logger.error("[-] Step 1: Configuration error while fetching CodeQL databases: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your GitHub token and permissions.")
         sys.exit(1)
     except CodeQLError as e:
-        logger.error("❌ Step 1: Failed to fetch CodeQL databases: %s", e)
+        logger.error("[-] Step 1: Failed to fetch CodeQL databases: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check file permissions, disk space, and GitHub API access.")
         sys.exit(1)
@@ -112,17 +116,17 @@ def step2_run_codeql_queries(dbs_dir: str, lang: str, threads: int) -> None:
             dbs_dir=dbs_dir
         )
     except CodeQLConfigError as e:
-        logger.error("❌ Step 2: Configuration error while running CodeQL queries: %s", e)
+        logger.error("[-] Step 2: Configuration error while running CodeQL queries: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your CODEQL_PATH configuration.")
         sys.exit(1)
     except CodeQLExecutionError as e:
-        logger.error("❌ Step 2: Failed to execute CodeQL queries: %s", e)
+        logger.error("[-] Step 2: Failed to execute CodeQL queries: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your CodeQL installation and database files.")
         sys.exit(1)
     except CodeQLError as e:
-        logger.error("❌ Step 2: CodeQL error while running queries: %s", e)
+        logger.error("[-] Step 2: CodeQL error while running queries: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your CodeQL database files and query syntax.")
         sys.exit(1)
@@ -150,28 +154,28 @@ def step3_classify_results_with_llm(dbs_dir: str, lang: str) -> None:
         analyzer = IssueAnalyzer(lang=lang)
         analyzer.run(dbs_dir)
     except LLMConfigError as e:
-        logger.error("❌ Step 3: LLM configuration error: %s", e)
+        logger.error("[-] Step 3: LLM configuration error: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your LLM configuration and API credentials in .env file.")
         sys.exit(1)
     except LLMApiError as e:
-        logger.error("❌ Step 3: LLM API error: %s", e)
+        logger.error("[-] Step 3: LLM API error: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your API key, network connection, and rate limits.")
         sys.exit(1)
     except LLMError as e:
-        logger.error("❌ Step 3: LLM error: %s", e)
+        logger.error("[-] Step 3: LLM error: %s", e)
         _log_exception_cause(e)
         logger.error("   Please check your LLM provider settings and API status.")
         sys.exit(1)
     except CodeQLError as e:
-        logger.error("❌ Step 3: CodeQL error while reading database files: %s", e)
+        logger.error("[-] Step 3: CodeQL error while reading database files: %s", e)
         _log_exception_cause(e)
         logger.error("   This step reads CodeQL database files (YAML, ZIP, CSV) to prepare data for LLM analysis.")
         logger.error("   Please check your CodeQL databases and files are accessible.")
         sys.exit(1)
     except VulnhallaError as e:
-        logger.error("❌ Step 3: File system error while saving results: %s", e)
+        logger.error("[-] Step 3: File system error while saving results: %s", e)
         _log_exception_cause(e)
         logger.error("   This step writes analysis results to disk and creates output directories.")
         logger.error("   Please check file permissions and disk space.")
@@ -187,7 +191,7 @@ def step4_open_ui() -> None:
     """
     logger.info("\n[4/4] Opening UI")
     logger.info("-" * 60)
-    logger.info("✅ Pipeline completed successfully!")
+    logger.info("[+] Pipeline completed successfully!")
     logger.info("Opening results UI...")
     ui_main()
 
@@ -196,25 +200,24 @@ def main_analyze() -> None:
     """
     CLI entry point for the complete analysis pipeline.
     
-    Reads repository name from command line arguments (sys.argv[1]).
-    Expected usage: python src/pipeline.py <org/repo>
-    
-    Raises:
-        CodeQLError: If no repository name is provided.
-        ValueError: If repository name is not in format 'org/repo'.
+    Expected usage: vulnhalla <org/repo> [--force] 
     """
-    if len(sys.argv) == 1:
-        raise CodeQLError("No arguments provided. Repository name is required (e.g., 'redis/redis').")
+    parser = argparse.ArgumentParser(
+        prog="vulnhalla",
+        description="Vulnhalla - Automated CodeQL Analysis with LLM Classification"
+    )
+    parser.add_argument("repo", help="GitHub repository in 'org/repo' format")
+    parser.add_argument("--force", "-f", action="store_true", help="Re-download even if database exists")
     
-    repo = sys.argv[1]
-    # Validate repository format
-    if "/" not in repo:
-        raise ValueError("Repository must be in format 'org/repo'")
+    args = parser.parse_args()
     
-    analyze_pipeline(repo=repo)
+    if "/" not in args.repo:
+        parser.error("Repository must be in format 'org/repo'")
+    
+    analyze_pipeline(repo=args.repo, force=args.force)
 
 
-def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int = 16, open_ui: bool = True) -> None:
+def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int = 16, open_ui: bool = True, force: bool = False) -> None:
     """
     Run the complete Vulnhalla pipeline: fetch, analyze, classify, and optionally open UI.
     
@@ -223,6 +226,7 @@ def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int =
         lang: Programming language code. Defaults to "c".
         threads: Number of threads for CodeQL operations. Defaults to 16.
         open_ui: Whether to open the UI after completion. Defaults to True.
+        force: If True, re-download even if database exists. Defaults to False.
     
     Note:
         This function catches and handles all exceptions internally, logging errors
@@ -237,7 +241,7 @@ def analyze_pipeline(repo: Optional[str] = None, lang: str = "c", threads: int =
     except (CodeQLConfigError, LLMConfigError, VulnhallaError) as e:
         # Format error message for display
         message = f"""
-⚠️ Configuration Validation Failed
+[-] Configuration Validation Failed
 ============================================================
 {str(e)}
 ============================================================
@@ -249,7 +253,7 @@ See README.md for configuration reference.
         sys.exit(1)
     
     # Step 1: Fetch CodeQL databases
-    dbs_dir = step1_fetch_codeql_dbs(lang, threads, repo)
+    dbs_dir = step1_fetch_codeql_dbs(lang, threads, repo, force)
     
     # Step 2: Run CodeQL queries
     step2_run_codeql_queries(dbs_dir, lang, threads)
@@ -260,6 +264,75 @@ See README.md for configuration reference.
     # Step 4: Open UI (optional)
     if open_ui:
         step4_open_ui()
+
+
+def main_ui() -> None:
+    """
+    CLI entry point to open the UI without running analysis.
+    
+    Expected usage: vulnhalla-ui
+    """
+    logger.info("Opening Vulnhalla UI...")
+    ui_main()
+
+
+def main_validate() -> None:
+    """
+    CLI entry point to validate configuration.
+    
+    Expected usage: vulnhalla-validate
+    """
+    from src.utils.config_validator import validate_all_config
+    
+    is_valid, errors = validate_all_config()
+    
+    if is_valid:
+        logger.info("[+] All configuration is valid!")
+    else:
+        for error in errors:
+            logger.error(error)
+        sys.exit(1)
+
+
+def main_list() -> None:
+    """
+    CLI entry point to list analyzed repositories.
+    
+    Expected usage: vulnhalla-list
+    """
+    from src.ui.results_loader import ResultsLoader
+    
+    results_dir = Path("output/results")
+    if not results_dir.exists():
+        logger.info("No results found. Run 'vulnhalla <org/repo>' first.")
+        return
+    
+    loader = ResultsLoader()
+    
+    # Currently only 'c' language is supported
+    lang = "c"
+    issues, _ = loader.load_all_issues(lang)
+    
+    if not issues:
+        logger.info("No analyzed repositories found.")
+        return
+    
+    # Group issues by repo
+    repos = {}
+    for issue in issues:
+        repo = issue.repo
+        if repo not in repos:
+            repos[repo] = {"true": 0, "false": 0, "needs_more_data to decide": 0}
+        repos[repo][issue.status] += 1
+    
+    logger.info("Analyzed repositories:")
+    logger.info("-" * 50)
+    for repo, counts in sorted(repos.items()):
+        total = counts["true"] + counts["false"] + counts["needs_more_data to decide"]
+        logger.info(
+            "  %-30s %3d issues (%d True positive, %d False positive, %d Needs more data to decide)",
+            repo, total, counts["true"], counts["false"], counts["needs_more_data to decide"]
+        )
 
 
 if __name__ == '__main__':

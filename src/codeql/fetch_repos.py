@@ -206,14 +206,9 @@ def custom_download(url: str, local_filename: str, max_attempts: int = 5, attemp
             # Check for 416 Range Not Satisfiable error
             status = response.status_code
             if status == 416:
-                logger.warning("Received 416 error (Range Not Satisfiable) - file may have changed on server")
-                logger.info("Will retry download from beginning (full download)")
-                
-                # Retry from beginning with force_full_download=True to skip Range header
+                # File changed on server, restart download from beginning
                 if attempt < max_attempts:
-                    backoff_time = min(2 ** attempt, 60)
-                    logger.info("Retrying download from beginning in %.1f seconds...", backoff_time)
-                    time.sleep(backoff_time)
+                    logger.debug("Server file changed, restarting download")
                     return custom_download(url, local_filename, max_attempts, attempt + 1, force_full_download=True)
                 else:
                     raise CodeQLError(
@@ -573,7 +568,8 @@ def download_db_by_name(repo_name: str, lang: str, threads: int) -> str:
 def fetch_codeql_dbs(
     lang: str = "c",
     threads: int = 4,
-    repo_name: str = None
+    repo_name: str = None,
+    force: bool = False
 ) -> str:
     """
     Fetch and download CodeQL databases for GitHub repositories.
@@ -583,6 +579,7 @@ def fetch_codeql_dbs(
         threads (int, optional): Number of threads for multi-threaded download. Defaults to 4.
         repo_name (str, optional): Downloads this repository's DB.
             Format: "org/repo". Defaults to None.
+        force (bool, optional): Re-download even if database exists. Defaults to False.
     
     Returns:
         str: Path to the directory containing downloaded database.
@@ -607,6 +604,19 @@ def fetch_codeql_dbs(
         raise CodeQLError(f"Permission denied creating ZIP directory: {zip_folder_path}") from e
     except OSError as e:
         raise CodeQLError(f"OS error creating ZIP directory: {zip_folder_path}") from e
+    
+    # Check if database already exists
+    _, just_repo_name = repo_name.split("/")
+    target_path = db_folder_path / just_repo_name
+    if target_path.exists() and not force:
+        logger.info("Database already exists at %s, skipping download (use --force to re-download)", target_path)
+        return str(target_path)
+    
+    # If force, delete existing ZIP to avoid resume issues
+    if force and target_path.exists():
+        zip_file = zip_folder_path / f"{just_repo_name}.zip"
+        if zip_file.exists():
+            zip_file.unlink()
     
     return download_db_by_name(repo_name, lang, threads)
 

@@ -318,17 +318,17 @@ def validate_all_config() -> Tuple[bool, List[str]]:
     # Validate CodeQL path
     codeql_valid, codeql_error = validate_codeql_path()
     if not codeql_valid:
-        errors.append(f"❌ CodeQL Configuration Error:\n{codeql_error}")
+        errors.append(f"[-] CodeQL Configuration Error:\n{codeql_error}")
     
     # Validate LLM config
     llm_valid, llm_error = validate_llm_config()
     if not llm_valid:
-        errors.append(f"❌ LLM Configuration Error:\n{llm_error}")
+        errors.append(f"[-] LLM Configuration Error:\n{llm_error}")
     
     # Validate Logging config
     logging_valid, logging_error = validate_logging_config()
     if not logging_valid:
-        errors.append(f"❌ Logging Configuration Error:\n{logging_error}")
+        errors.append(f"[-] Logging Configuration Error:\n{logging_error}")
     
     is_valid = len(errors) == 0
     return is_valid, errors

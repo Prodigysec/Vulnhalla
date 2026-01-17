@@ -325,7 +325,7 @@ def compile_and_run_codeql_queries(
         else:
             logger.info("Output files already exist for this DB, skipping...")
 
-    logger.info("✅ done!")
+    logger.info("[+] done!")
 
 
 def main_cli() -> None:

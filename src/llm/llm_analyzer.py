@@ -68,7 +68,13 @@ class LLMAnalyzer:
                     ),
                     "parameters": {
                         "type": "object",
-                        "properties": {},
+                        "properties": {
+                            "_": {
+                                "type": "boolean",
+                                "description": "Unused. Ignore."
+                            }
+                        },
+                        "required": []
                     }
                 }
             },

@@ -75,40 +75,35 @@ LOG_FORMAT=default              # default or json
 
 > **📖 For complete configuration reference:** See [Configuration Reference](#-configuration-reference) below for all supported providers (OpenAI, Azure, Gemini), required/optional variables, and detailed examples.
 
-**Optional:** Create a virtual environment:
+### Step 3: Install Dependencies and Setup
+
+**Option 1: Poetry Setup (Recommended)**
 
 ```bash
-# (Optional) Create virtual environment
-python3 -m venv venv
-venv\Scripts\activate # On Windows
-# On MacOS/Linux: source venv/bin/activate
+# Install Python dependencies and the project
+poetry install
+
+# Setup CodeQL packs
+poetry run vulnhalla-setup
 ```
 
-### Step 3: setup
-
-**Option 1: Automated Setup (Recommended)**
+**Option 2: Legacy Setup (using setup.py)**
 
 ```bash
 python setup.py
 ```
 
-**Note:** Virtual environment is optional. If `venv/` exists, setup will use it. Otherwise, it installs to your current Python environment.
+**Note:** The legacy setup script is deprecated. Use `poetry run vulnhalla-setup` instead.
 
-The setup script will:
-- Install Python dependencies from `requirements.txt`
-- Initialize CodeQL packs
-
-**Option 2: Manual Setup**
+**Option 3: Manual Setup**
 
 If you prefer to install manually:
 
-### Install dependencies
 ```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### Initialize CodeQL packs
-```bash
+# Initialize CodeQL packs
 cd data/queries/cpp/tools
 codeql pack install
 cd ../issues
@@ -124,10 +119,13 @@ Run the complete pipeline with a single command:
 
 ```bash
 # Analyze a specific repository
-python src/pipeline.py redis/redis
+poetry run vulnhalla redis/redis
 
-# Analyze top 100 repositories
-python src/pipeline.py
+# Re-download even if database already exists
+poetry run vulnhalla redis/redis --force
+
+# Show help
+poetry run vulnhalla --help
 ```
 
 This will automatically:
@@ -136,12 +134,25 @@ This will automatically:
 3. Analyze results with LLM and save to `output/results/`
 4. Open the UI to browse results
 
+### Additional Commands 
+
+```bash
+# Open UI to view existing results (without running analysis)
+poetry run vulnhalla-ui
+
+# Validate configuration: CodeQL, LLM, Logging (without running analysis)
+poetry run vulnhalla-validate
+
+# List analyzed repositories and their issue counts
+poetry run vulnhalla-list
+```
+
 **Option 2: Using the Example Script**
 
 Run the end-to-end example:
 
 ```bash
-python examples/example.py
+poetry run python examples/example.py
 ```
 
 This will:
@@ -158,9 +169,9 @@ Vulnhalla includes a full-featured User Interface for browsing and exploring ana
 ### Running the UI
 
 ```bash
-python src/ui/ui_app.py
+poetry run python src/ui/ui_app.py
 # or
-python examples/ui_example.py
+poetry run python examples/ui_example.py
 ```
 
 ### UI Layout
@@ -346,10 +357,10 @@ The project includes basic test infrastructure using pytest:
 
 ```bash
 # Run all tests
-pytest
+poetry run pytest
 
 # Run with verbose output
-pytest -v
+poetry run pytest -v
 ```
 
 The test suite includes smoke tests to verify the test infrastructure is set up correctly.
