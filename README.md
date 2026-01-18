@@ -51,7 +51,8 @@ cd Vulnhalla
 
 2. **Copy `.env.example` to `.env`:**
 ```bash
-cp .env.example .env
+cp .env.example .env # macOS / Linux
+Copy-Item .env.example .env # Windows (PowerShell)
 ```
 
 3. **Edit `.env` and fill in your values:**
@@ -75,50 +76,58 @@ LOG_FORMAT=default              # default or json
 
 > **📖 For complete configuration reference:** See [Configuration Reference](#-configuration-reference) below for all supported providers (OpenAI, Azure, Gemini), required/optional variables, and detailed examples.
 
-### Step 3: Install Dependencies and Setup
+### Step 3: Install Poetry (Recommended: pipx)
 
-**Option 1: Poetry Setup (Recommended)**
 
+**Windows (PowerShell):**
+```powershell
+# List available Python versions
+py -0p
+
+# Pick any supported Python: 3.10 / 3.11 / 3.12 / 3.13
+py -3.12 -m pip install --user -U pipx
+py -3.12 -m pipx ensurepath
+# Close and reopen terminal (required)
+pipx install poetry
+poetry --version
+```
+
+**macOS / Linux:**
 ```bash
-# Install Python dependencies and the project
-poetry install
+# Check your Python version
+python3 --version
 
-# Setup CodeQL packs
+# Use any supported Python: 3.10 / 3.11 / 3.12 / 3.13
+python3 -m pip install --user -U pipx
+python3 -m pipx ensurepath
+# Restart terminal (required)
+pipx install poetry
+poetry --version
+```
+
+### Step 4: Install Dependencies and Setup
+
+
+**Windows (PowerShell):**
+```powershell
+# Pick one supported version you have: 3.10 / 3.11 / 3.12 / 3.13
+poetry env use py -3.12 # Force Poetry to use a supported Python version if you have multiple versions installed
+poetry install
 poetry run vulnhalla-setup
 ```
 
-**Option 2: Legacy Setup (using setup.py)**
-
+**macOS / Linux:**
 ```bash
-python setup.py
+# Pick one supported version you have: 3.10 / 3.11 / 3.12 / 3.13
+poetry env use python3.12 # Force Poetry to use a supported Python version if you have multiple versions installed
+poetry install
+poetry run vulnhalla-setup
 ```
 
-**Note:** The legacy setup script is deprecated. Use `poetry run vulnhalla-setup` instead.
-
-**Option 3: Manual Setup**
-
-If you prefer to install manually:
+### Step 5: Run the Pipeline
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Initialize CodeQL packs
-cd data/queries/cpp/tools
-codeql pack install
-cd ../issues
-codeql pack install
-cd ../../../..
-```
-
-### Step 4: Run the Pipeline
-
-**Option 1: Using the Unified Pipeline**
-
-Run the complete pipeline with a single command:
-
-```bash
-# Analyze a specific repository
+# Analyze a specific repository, for example:
 poetry run vulnhalla redis/redis
 
 # Re-download even if database already exists
@@ -145,20 +154,10 @@ poetry run vulnhalla-validate
 
 # List analyzed repositories and their issue counts
 poetry run vulnhalla-list
+
+# Run example pipeline (analyzes videolan/vlc and redis/redis)
+poetry run vulnhalla-example
 ```
-
-**Option 2: Using the Example Script**
-
-Run the end-to-end example:
-
-```bash
-poetry run python examples/example.py
-```
-
-This will:
-1. Fetch CodeQL databases for `videolan/vlc` and `redis/redis`
-2. Run CodeQL queries on all downloaded databases
-3. Analyze results with LLM and save to `output/results/`
 
 ---
 
@@ -367,14 +366,14 @@ The test suite includes smoke tests to verify the test infrastructure is set up 
 
 ### Project Dependencies
 
-See `requirements.txt` for Python dependencies:
+Dependencies are managed via Poetry in `pyproject.toml`:
 - `requests` - HTTP requests for GitHub API
 - `pySmartDL` - Smart download manager for CodeQL databases
 - `litellm` - Unified LLM interface supporting multiple providers
 - `python-dotenv` - Environment variable management
 - `PyYAML` - YAML parsing for CodeQL pack files
 - `textual` - Terminal UI framework
-- `pytest` - Testing framework
+- `pytest` - Testing framework (dev dependency)
 
 ### CodeQL Queries
 

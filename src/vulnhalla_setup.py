@@ -123,8 +123,8 @@ def main() -> None:
         logger.info("2. Run one of the following commands to start the pipeline:")
     else:
         logger.info("Run one of the following commands to start the pipeline:")
-    logger.info("   • poetry run python src/pipeline.py <repo_org/repo_name>    # Analyze a specific repository")
-    logger.info("   • poetry run python examples/example.py                     # See a full pipeline run")
+    logger.info("   • poetry run vulnhalla <org/repo>    # Analyze a specific repository")
+    logger.info("   • poetry run vulnhalla-example       # See a full pipeline run")
 
 
 if __name__ == "__main__":

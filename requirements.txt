@@ -1,7 +1,0 @@
-requests
-python-dotenv
-litellm
-PyYAML
-textual
-pySmartDL
-pytest
