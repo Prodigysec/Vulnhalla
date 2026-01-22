@@ -3,7 +3,7 @@
 Data models for Vulnhalla UI.
 """
 
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 
@@ -101,7 +101,7 @@ def get_default_sort_key(issue: "Issue") -> float:
     return int(issue.id) if issue.id.isdigit() else float('inf')
 
 
-def get_sort_key_for_column(column: str) -> Optional[Callable[["Issue"], any]]:
+def get_sort_key_for_column(column: str) -> Optional[Callable[["Issue"], Any]]:
     """
     Get sort key function for a given column name.
 
@@ -111,7 +111,7 @@ def get_sort_key_for_column(column: str) -> Optional[Callable[["Issue"], any]]:
     Returns:
         Optional[Callable]: Sort key function, or None if column not supported.
     """
-    sort_keys: Dict[str, Callable[["Issue"], any]] = {
+    sort_keys: Dict[str, Callable[["Issue"], Any]] = {
         "ID": lambda issue: int(issue.id) if issue.id.isdigit() else float('inf'),
         "Repo": lambda issue: issue.repo.lower(),
         "Issue name": lambda issue: issue.name.lower(),

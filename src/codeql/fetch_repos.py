@@ -568,7 +568,7 @@ def download_db_by_name(repo_name: str, lang: str, threads: int) -> str:
 def fetch_codeql_dbs(
     lang: str = "c",
     threads: int = 4,
-    repo_name: str = None,
+    repo_name: str | None = None,
     force: bool = False
 ) -> str:
     """

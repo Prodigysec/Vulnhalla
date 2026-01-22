@@ -22,6 +22,7 @@ We recommend using Python 3.10 – 3.13. Python 3.14+ is not supported (grpcio w
 ### Contribution Guidelines
 
 - **Code Style**: Follow Python PEP 8 style guidelines
+- **Type Hints**: Add type hints to all new functions (see [Type Checking](#type-checking) below)
 - **Testing**: Test your changes using `examples/example.py` and `examples/ui_example.py`
 - **Documentation**: Update the README.md if you're adding new features or changing behavior
 - **Commit Messages**: Write clear, descriptive commit messages
@@ -127,6 +128,20 @@ LOG_LEVEL=DEBUG python examples/example.py
 # Test with warning level only
 LOG_LEVEL=WARNING python examples/example.py
 ```
+
+## Type Checking
+
+This project uses [mypy](https://mypy.readthedocs.io/) for static type checking. Run mypy before submitting a pull request:
+
+```bash
+poetry run mypy src
+```
+
+### Guidelines
+
+- **Add type hints** to all new functions (parameters and return types)
+- **Run mypy** to ensure no new errors are introduced
+- Configuration is in `pyproject.toml` under `[tool.mypy]`
 
 ## Releases
 

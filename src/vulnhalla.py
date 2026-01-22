@@ -604,13 +604,13 @@ class IssueAnalyzer:
 
             # Send to LLM (with error handling for timeouts and API errors)
             try:
-            messages, content = llm_analyzer.run_llm_security_analysis(
-                prompt,
-                function_tree_file,
-                current_function,
-                functions,
-                self.db_path
-            )
+                messages, content = llm_analyzer.run_llm_security_analysis(
+                    prompt,
+                    function_tree_file,
+                    current_function,
+                    functions,
+                    self.db_path
+                )
             except LLMApiError as e:
                 # Skip this issue on LLM errors (timeout, rate limit, etc.) and continue with others
                 logger.warning("Issue ID: %s SKIPPED - LLM error: %s", issue_id, e)

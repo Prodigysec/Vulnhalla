@@ -9,7 +9,7 @@ CodeQL analysis results processed by Vulnhalla.
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from rich.markup import escape as markup_escape
 
@@ -82,7 +82,7 @@ class VulnhallaUI(App):
         Binding("]", "resize_right", "Resize Right"),
     ]
     
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the VulnhallaUI application.
         """
@@ -637,7 +637,7 @@ class VulnhallaUI(App):
             self.apply_filters()
 
 
-    def get_actions(self):
+    def get_actions(self) -> List[Any]:
         """
         Override to filter out minimize and maximize from command palette.
 
@@ -669,7 +669,7 @@ class VulnhallaUI(App):
         pass
 
 
-def main():
+def main() -> None:
     """
     Entry point for running the UI.
     """

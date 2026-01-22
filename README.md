@@ -362,6 +362,17 @@ poetry run pytest -v
 
 The test suite includes smoke tests to verify the test infrastructure is set up correctly.
 
+### Type Checking
+
+The project uses mypy for static type checking:
+
+```bash
+poetry run mypy src
+```
+
+Type checking is configured in `pyproject.toml` under `[tool.mypy]`.
+The configuration uses a conservative baseline with per-module overrides to allow gradual adoption.
+
 ### Project Dependencies
 
 Dependencies are managed via Poetry in `pyproject.toml`:
@@ -372,6 +383,7 @@ Dependencies are managed via Poetry in `pyproject.toml`:
 - `PyYAML` - YAML parsing for CodeQL pack files
 - `textual` - Terminal UI framework
 - `pytest` - Testing framework (dev dependency)
+- `mypy` - Static type checker (dev dependency)
 
 ### CodeQL Queries
 
