@@ -7,7 +7,10 @@
 
 For a detailed overview of the research and motivation behind Vulnhalla, see the official CyberArk Threat Research blog post:
 
-**["Vulnhalla: Picking the True Vulnerabilities from the CodeQL Haystack"](https://www.cyberark.com/resources/threat-research-blog/vulnhalla-picking-the-true-vulnerabilities-from-the-codeql-haystack)**
+<a href="https://www.cyberark.com/resources/threat-research-blog/vulnhalla-picking-the-true-vulnerabilities-from-the-codeql-haystack"
+   target="_blank" rel="noopener noreferrer">
+  Vulnhalla: Picking the True Vulnerabilities from the CodeQL Haystack
+</a>
 
 ### Vulnhalla automates the complete security analysis pipeline:
 
