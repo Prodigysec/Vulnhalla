@@ -6,6 +6,24 @@ Details panel component for Vulnhalla UI.
 from textual.containers import Container, Vertical, ScrollableContainer
 from textual.widgets import Static, Label, Select
 from textual.app import ComposeResult
+from textual.events import Click
+
+
+class ManualDecisionContainer(Vertical):
+    """Container that focuses the Select when clicked anywhere."""
+    
+    def on_click(self, event: Click) -> None:
+        """Focus the select widget when clicking on container (not the Select itself)."""
+        try:
+            select = self.query_one("#manual-decision-select", Select)
+            # Check if click was on the Select or its children - if so, let it handle naturally
+            widget = self.app.get_widget_at(event.screen_x, event.screen_y)[0]
+            if widget is select or select in widget.ancestors:
+                return  # Let the Select handle its own clicks
+            # Click was on label or empty area - focus the Select
+            select.focus()
+        except Exception:
+            pass
 
 
 class DetailsPanel(Container):
@@ -25,16 +43,15 @@ class DetailsPanel(Container):
             with scrollable_content:
                 yield Static("Select an issue to view details", id="details-content", markup=True)
             # Manual decision controls
-            with Vertical(id="manual-decision-container"):
+            with ManualDecisionContainer(id="manual-decision-container"):
                 yield Label("Enter your manual decision:", id="manual-decision-label")
                 yield Select(
                     [
-                        ("Not Set", None),
                         ("True Positive", "True Positive"),
                         ("False Positive", "False Positive"),
                         ("Uncertain", "Uncertain"),
                     ],
-                    value=None,
+                    allow_blank=True,
                     id="manual-decision-select",
                     prompt="Not Set"
                 )

@@ -59,9 +59,9 @@ class VulnhallaUI(App):
     #issues-search { margin: 1; width: 100%; }
     #controls-bar { height: 11; border-top: solid $primary; }
     #details-scrollable { height: 1fr; }
-    #manual-decision-container { height: auto; border-top: solid $primary; }
-    #manual-decision-label { margin: 1 1 0 1; }
-    #manual-decision-select { margin: 0 1 1 1; width: auto; }
+    #manual-decision-container { height: 5; border-top: solid $primary; padding: 0 1; }
+    #manual-decision-label { margin: 0; }
+    #manual-decision-select { margin: 0; width: 100%; }
     #issues-list { width: 50%; }
     #details { width: 50%; }
     Select, Select:focus, SelectOverlay, SelectOverlay:focus { border: none; }
@@ -143,12 +143,6 @@ class VulnhallaUI(App):
         """
         self.current_lang = "c"  # Only C is currently supported
         
-        # Save manual decisions before reloading
-        manual_decisions_map: Dict[str, Optional[str]] = {}
-        for issue in self.issues:
-            if issue.manual_decision is not None:
-                manual_decisions_map[issue.final_path] = issue.manual_decision
-        
         # Load issues from disk - now returns (issues, errors)
         self.issues, errors = self.loader.load_all_issues(self.current_lang)
         
@@ -169,10 +163,11 @@ class VulnhallaUI(App):
                 for error in errors:
                     logger.warning(error)
         
-        # Restore manual decisions by matching final_path
+        # Load saved manual decisions from disk and apply to issues
+        saved_decisions = self.loader.load_manual_decisions()
         for issue in self.issues:
-            if issue.final_path in manual_decisions_map:
-                issue.manual_decision = manual_decisions_map[issue.final_path]
+            if issue.final_path in saved_decisions:
+                issue.manual_decision = saved_decisions[issue.final_path]
         
         self.apply_filters()
 
@@ -549,8 +544,15 @@ class VulnhallaUI(App):
                 # Update the manual_decision
                 self.selected_issue.manual_decision = event.value  # Could be None for "Not Set"
                 
-                # Update the table
-                self.update_issues_table(preserve_row_key=self.selected_issue.id)
+                # Save to disk for persistence
+                self.loader.save_manual_decision(self.selected_issue.final_path, event.value)
+                
+                # Update just the cell, not the whole table (avoids layout shifts)
+                table = self.query_one("#issues-table", DataTable)
+                manual_display = format_manual_decision(event.value)
+                row_index = table.get_row_index(self.selected_issue.id)
+                # Column 2 is "Manual decision" (0=ID, 1=LLM decision, 2=Manual decision)
+                table.update_cell_at((row_index, 2), manual_display)
 
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

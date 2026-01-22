@@ -287,7 +287,7 @@ def main_validate() -> None:
     is_valid, errors = validate_all_config()
     
     if is_valid:
-        logger.info("[+] All configuration is valid!")
+        logger.info("[+] All configurations are valid!")
     else:
         for error in errors:
             logger.error(error)
@@ -333,6 +333,16 @@ def main_list() -> None:
             "  %-30s %3d issues (%d True positive, %d False positive, %d Needs more data to decide)",
             repo, total, counts["true"], counts["false"], counts["needs_more_data to decide"]
         )
+
+
+def main_example() -> None:
+    """
+    CLI entry point to run the example pipeline.
+    
+    Expected usage: vulnhalla-example
+    """
+    from examples.example import main as example_main
+    example_main()
 
 
 if __name__ == '__main__':

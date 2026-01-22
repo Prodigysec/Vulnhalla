@@ -356,7 +356,8 @@ class LLMAnalyzer:
         try:
             response = litellm.completion(
                 model=model_name,
-                messages=[{"role": "user", "content": args_prompt}]
+                messages=[{"role": "user", "content": args_prompt}],
+                timeout=120  # 2 minute timeout
             )
             return response.choices[0].message
         except litellm.RateLimitError as e:
@@ -427,7 +428,8 @@ class LLMAnalyzer:
                     messages=messages,
                     tools=self.tools,
                     temperature=temperature,
-                    top_p=top_p
+                    top_p=top_p,
+                    timeout=120  # 2 minute timeout to prevent hanging
                 )
             except litellm.RateLimitError as e:
                 raise LLMApiError(f"Rate limit exceeded for LLM API: {e}") from e

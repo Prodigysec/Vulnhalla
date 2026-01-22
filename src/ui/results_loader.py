@@ -26,6 +26,8 @@ class ResultsLoader:
     Loads and parses issue results from output/results/ directory.
     """
     
+    MANUAL_DECISIONS_FILE = "manual_decisions.json"
+    
     def __init__(self, results_root: str = "output/results"):
         """
         Initialize the ResultsLoader.
@@ -35,6 +37,53 @@ class ResultsLoader:
                 Defaults to "output/results".
         """
         self.results_root = Path(results_root)
+    
+    def get_manual_decisions_path(self) -> Path:
+        """Get the path to the manual decisions JSON file."""
+        return self.results_root / self.MANUAL_DECISIONS_FILE
+    
+    def load_manual_decisions(self) -> Dict[str, str]:
+        """
+        Load manual decisions from disk.
+        
+        Returns:
+            Dict mapping final_path to manual decision string.
+        """
+        decisions_path = self.get_manual_decisions_path()
+        if not decisions_path.exists():
+            return {}
+        try:
+            with open(decisions_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load manual decisions: {e}")
+            return {}
+    
+    def save_manual_decision(self, final_path: str, decision: Optional[str]) -> None:
+        """
+        Save a manual decision to disk.
+        
+        Args:
+            final_path: The path to the _final.json file (used as key).
+            decision: The manual decision value, or None to clear it.
+        """
+        decisions = self.load_manual_decisions()
+        
+        if decision is None:
+            # Remove the decision if set to None/"Not Set"
+            decisions.pop(final_path, None)
+        else:
+            decisions[final_path] = decision
+        
+        # Ensure directory exists
+        decisions_path = self.get_manual_decisions_path()
+        decisions_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            with open(decisions_path, "w", encoding="utf-8") as f:
+                json.dump(decisions, f, indent=2)
+        except IOError as e:
+            logger.error(f"Failed to save manual decisions: {e}")
 
 
     def extract_status(self, content: str) -> str:

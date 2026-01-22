@@ -34,7 +34,7 @@ from src.utils.common_functions import (
 from src.llm.llm_analyzer import LLMAnalyzer
 from src.utils.config_validator import validate_and_exit_on_error
 from src.utils.logger import get_logger
-from src.utils.exceptions import VulnhallaError, CodeQLError
+from src.utils.exceptions import VulnhallaError, CodeQLError, LLMApiError
 
 logger = get_logger(__name__)
 
@@ -534,6 +534,7 @@ class IssueAnalyzer:
         real_issues = []
         false_issues = []
         more_data = []
+        skipped_issues = []  # Track issues skipped due to LLM errors (timeout, rate limit, etc.)
 
         logger.info("Found %d issues of type %s", len(issues_of_type), issue_type)
         logger.info("")
@@ -601,7 +602,8 @@ class IssueAnalyzer:
             # Save raw input to the LLM
             self.save_raw_input_data(prompt, function_tree_file, current_function, results_folder, issue_id)
 
-            # Send to LLM
+            # Send to LLM (with error handling for timeouts and API errors)
+            try:
             messages, content = llm_analyzer.run_llm_security_analysis(
                 prompt,
                 function_tree_file,
@@ -609,6 +611,13 @@ class IssueAnalyzer:
                 functions,
                 self.db_path
             )
+            except LLMApiError as e:
+                # Skip this issue on LLM errors (timeout, rate limit, etc.) and continue with others
+                logger.warning("Issue ID: %s SKIPPED - LLM error: %s", issue_id, e)
+                skipped_issues.append(issue_id)
+                issue_id += 1
+                continue
+
             gpt_result = self.format_llm_messages(messages)
             final_file = Path(results_folder) / f"{issue_id}_final.json"
             write_file_ascii(str(final_file), gpt_result)
@@ -635,6 +644,8 @@ class IssueAnalyzer:
         logger.info("True Positive: %d", len(real_issues))
         logger.info("False Positive: %d", len(false_issues))
         logger.info("LLM needs More Data: %d", len(more_data))
+        if skipped_issues:
+            logger.warning("Skipped (LLM errors): %d (IDs: %s)", len(skipped_issues), skipped_issues)
         logger.info("")
 
 
