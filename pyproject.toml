@@ -11,7 +11,7 @@ repository = "https://github.com/cyberark/Vulnhalla"
 python = ">=3.10,<3.14"
 # Python version constraint: >=3.10,<3.14
 # - Minimum 3.10
-# - Maximum <3.14: Explicitly not supported due to grpcio wheels unavailable
+# - Maximum <3.14: Not supported due to grpcio wheels unavailable
 
 requests = "^2.31.0"
 python-dotenv = "^1.0.0"
@@ -24,11 +24,12 @@ pySmartDL = "^1.3.4"
 pytest = "^7.4.0"
 
 [tool.poetry.scripts]
-vulnhalla-setup = "vulnhalla_setup:main"
-vulnhalla = "pipeline:main_analyze"
-vulnhalla-ui = "pipeline:main_ui"
-vulnhalla-validate = "pipeline:main_validate"
-vulnhalla-list = "pipeline:main_list"
+vulnhalla-setup = "src.vulnhalla_setup:main"
+vulnhalla = "src.pipeline:main_analyze"
+vulnhalla-ui = "src.pipeline:main_ui"
+vulnhalla-validate = "src.pipeline:main_validate"
+vulnhalla-list = "src.pipeline:main_list"
+vulnhalla-example = "src.pipeline:main_example"
 
 [build-system]
 requires = ["poetry-core"]

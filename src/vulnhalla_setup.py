@@ -49,7 +49,7 @@ def main() -> None:
         
         if codeql_cmd:
             if codeql_path == "codeql":
-                logger.debug("🔍 Checking if 'codeql' is in PATH...")
+                logger.debug("Checking if 'codeql' is in PATH...")
                 logger.info("[+] Found in PATH: %s", codeql_cmd)
             else:
                 logger.info("[+] Found CodeQL path: %s", codeql_cmd)
@@ -62,18 +62,18 @@ def main() -> None:
                 if os.name == 'nt':
                     logger.debug("Also checked: %s.cmd", codeql_path_clean)
             else:
-                logger.debug("🔍 Checking if 'codeql' is in PATH...")
+                logger.debug("Checking if 'codeql' is in PATH...")
                 logger.error("[-] 'codeql' not found in PATH")
     except Exception as e:
         # Fallback to checking PATH
         logger.error("[-] Error loading config: %s", e)
-        logger.debug("🔍 Falling back to PATH check...")
+        logger.debug("Falling back to PATH check...")
         codeql_cmd = shutil.which("codeql")
         if codeql_cmd:
             logger.info("[+] Found in PATH: %s", codeql_cmd)
     
     if codeql_cmd:
-        logger.info("📦 Installing CodeQL packs... This may take a moment ⏳")
+        logger.info("Installing CodeQL packs... This may take a moment")
         
         # Tools pack
         tools_dir = PROJECT_ROOT / "data/queries/cpp/tools"
@@ -94,15 +94,15 @@ def main() -> None:
             os.chdir(str(PROJECT_ROOT))
     else:
         logger.error("[-] CodeQL CLI not found. Skipping CodeQL pack installation.")
-        logger.info("🔗 Install CodeQL CLI from: https://github.com/github/codeql-cli-binaries/releases")
-        logger.info("   After installation, either add CodeQL to your PATH or set CODEQL_PATH in your .env file.")
-        logger.info("   Then run: poetry run vulnhalla-setup or install packages manually")
+        logger.info("Install CodeQL CLI from: https://github.com/github/codeql-cli-binaries/releases")
+        logger.info("After installation, either add CodeQL to your PATH or set CODEQL_PATH in your .env file.")
+        logger.info("Then run: poetry run vulnhalla-setup or install packages manually")
         return
     
     # Optional: Validate CodeQL configuration if .env file exists
     env_file = PROJECT_ROOT / ".env"
     if env_file.exists():
-        logger.debug("\n🔍 Validating CodeQL configuration...")
+        logger.debug("\nValidating CodeQL configuration...")
         try:
             from src.utils.config_validator import validate_codeql_path
             is_valid, error = validate_codeql_path()
@@ -110,14 +110,14 @@ def main() -> None:
                 logger.info("[+] CodeQL configuration validated successfully!")
             else:
                 logger.warning("[-] CodeQL configuration issue detected:")
-                logger.warning("   %s", error.split(chr(10))[0])  # Print first line of error
-                logger.warning("   Please fix this before running the pipeline.")
+                logger.warning("%s", error.split(chr(10))[0])  # Print first line of error
+                logger.warning("Please fix this before running the pipeline.")
         except Exception as e:
             logger.warning("[-] Could not validate CodeQL configuration: %s", e)
-            logger.info("   This is not critical - you can fix configuration later.")
+            logger.info("This is not critical - you can fix configuration later.")
     
-    logger.info("🎉 Setup completed successfully! 🎉")
-    logger.info("🔗 Next steps:")
+    logger.info("[+] Setup completed successfully!")
+    logger.info("Next steps:")
     if not env_file.exists():
         logger.info("1. Create a .env file with all the required variables (see README.md)")
         logger.info("2. Run one of the following commands to start the pipeline:")

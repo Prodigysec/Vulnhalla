@@ -111,7 +111,7 @@ poetry --version
 **Windows (PowerShell):**
 ```powershell
 # Pick one supported version you have: 3.10 / 3.11 / 3.12 / 3.13
-poetry env use py -3.12 # Force Poetry to use a supported Python version if you have multiple versions installed
+poetry env use 3.12  # Force Poetry to use a supported Python version if you have multiple versions installed
 poetry install
 poetry run vulnhalla-setup
 ```
@@ -119,7 +119,7 @@ poetry run vulnhalla-setup
 **macOS / Linux:**
 ```bash
 # Pick one supported version you have: 3.10 / 3.11 / 3.12 / 3.13
-poetry env use python3.12 # Force Poetry to use a supported Python version if you have multiple versions installed
+poetry env use 3.12  # Force Poetry to use a supported Python version if you have multiple versions installed
 poetry install
 poetry run vulnhalla-setup
 ```
@@ -168,9 +168,7 @@ Vulnhalla includes a full-featured User Interface for browsing and exploring ana
 ### Running the UI
 
 ```bash
-poetry run python src/ui/ui_app.py
-# or
-poetry run python examples/ui_example.py
+poetry run vulnhalla-ui
 ```
 
 ### UI Layout
