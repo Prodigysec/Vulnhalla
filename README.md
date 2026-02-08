@@ -37,7 +37,7 @@ Before starting, ensure you have:
   - Get from [GitHub Settings > Tokens](https://github.com/settings/tokens)
 
 - **LLM API key**
-  - OpenAI, Azure, or Gemini API key (depending on your provider)
+  - OpenAI, Azure, Gemini, or Bedrock credentials (depending on your provider)
 
 ### Step 2: Configure Environment
 
@@ -74,7 +74,7 @@ LOG_FORMAT=default              # default or json
 # LOG_VERBOSE_CONSOLE=false     # If true, WARNING/ERROR use full format (timestamp - logger - level - message)
 ```
 
-> **📖 For complete configuration reference:** See [Configuration Reference](#-configuration-reference) below for all supported providers (OpenAI, Azure, Gemini), required/optional variables, and detailed examples.
+> **📖 For complete configuration reference:** See [Configuration Reference](#-configuration-reference) below for all supported providers (OpenAI, Azure, Gemini, Bedrock), required/optional variables, and detailed examples.
 
 ### Step 3: Install Poetry (Recommended: pipx)
 
@@ -142,6 +142,22 @@ This will automatically:
 2. Run CodeQL queries on all downloaded databases
 3. Analyze results with LLM and save to `output/results/`
 4. Open the UI to browse results
+
+#### Using a Local CodeQL Database
+
+If you already have a CodeQL database on disk (e.g., created manually or from a previous run), you can skip the GitHub fetch step using the `--local` / `-l` flag:
+
+**Windows (PowerShell):**
+```powershell
+poetry run vulnhalla --local C:\path\to\my-codeql-db
+```
+
+**macOS / Linux:**
+```bash
+poetry run vulnhalla --local /path/to/my-codeql-db
+```
+
+> **Note:** The `--local` flag expects a CodeQL **database** directory, not a source code folder. You can verify by checking that the folder contains a `codeql-database.yml` file.
 
 ### Additional Commands 
 
@@ -279,7 +295,7 @@ All configuration is managed through environment variables in your `.env` file. 
 | Variable | Required For | Description |
 |----------|--------------|-------------|
 | `CODEQL_PATH` | All | Path to CodeQL executable. Defaults to `codeql` if CodeQL is in PATH. Use full path if not in PATH (e.g., `C:\path\to\codeql\codeql.cmd` on Windows) |
-| `PROVIDER` | All | LLM provider: `openai`, `azure`, or `gemini` |
+| `PROVIDER` | All | LLM provider: `openai`, `azure`, `gemini`, `bedrock`, `anthropic`, `mistral`, `groq`, `openrouter`, `ollama`, etc. |
 | `MODEL` | All | Model name (e.g., `gpt-4o`, `gpt-4-turbo`, `gemini-2.5-flash`) |
 
 #### Provider-Specific Required Variables
@@ -301,11 +317,39 @@ All configuration is managed through environment variables in your `.env` file. 
 |----------|-------------|
 | `GOOGLE_API_KEY` | Your Google API key from [Google AI Studio](https://makersuite.google.com/app/apikey) |
 
+**AWS Bedrock:**
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AWS_REGION_NAME` | Yes | AWS region (e.g., `us-east-1`, `us-west-2`) |
+| `AWS_PROFILE` | No* | AWS profile name for SSO/credential file auth |
+| `AWS_ACCESS_KEY_ID` | No* | AWS access key (if not using profile) |
+| `AWS_SECRET_ACCESS_KEY` | No* | AWS secret key (if not using profile) |
+| `AWS_SESSION_TOKEN` | No | Session token for temporary STS credentials |
+
+\* Authentication: Use `AWS_PROFILE` **or** `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (+ optional `AWS_SESSION_TOKEN` for STS).
+
+**Bedrock `.env` example (SSO):**
+```env
+PROVIDER=bedrock
+MODEL=anthropic.claude-3-5-sonnet-20241022-v2:0
+AWS_REGION_NAME=us-east-1
+AWS_PROFILE=your-profile
+```
+
+> **⚠️ Prerequisites:**
+> - AWS credentials must be configured (SSO, IAM profile, or access keys) with **permissions to invoke Bedrock models**
+> - **For SSO users:** Run `aws sso login --profile your-profile` before using Vulnhalla
+>
+> **🔧 Important - Model Selection:**
+> When selecting a Bedrock model, make sure it supports **tool calling/function calling** (not all Bedrock models do). Tool calling is a key part of Vulnhalla's analysis flow, so choosing a compatible model makes a big difference in functionality and results. Compatible models include: **Claude 3.x**, **Mistral**, or **Cohere Command R**.
+
 #### Optional Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GITHUB_TOKEN` | - | GitHub API token for higher rate limits. Get from [GitHub Settings > Tokens](https://github.com/settings/tokens) |
+| `GITHUB_API_URL` | `https://api.github.com` | GitHub API URL. For GitHub Enterprise, set to your server's API URL (e.g., `https://github.your-company.com/api/v3`) |
+| `GITHUB_SSL_VERIFY` | `true` | SSL certificate verification. Set to `false` for GitHub Enterprise with self-signed or internal CA certificates |
 | `LLM_TEMPERATURE` | `0.2` | LLM temperature (0.0-2.0). Lower = more deterministic. **Recommended: keep at 0.2** |
 | `LLM_TOP_P` | `0.2` | LLM top-p sampling (0.0-1.0). Lower = more focused. **Recommended: keep at 0.2** |
 | `LOG_LEVEL` | `INFO` | Logging level: `DEBUG`, `INFO`, `WARNING`, or `ERROR`. Controls verbosity of console output |
@@ -324,8 +368,9 @@ Vulnhalla validates your configuration at startup. If required variables are mis
 
 **Common validation errors:**
 - Missing API key for selected provider
-- Invalid provider name (must be `openai`, `azure`, or `gemini`)
+- Invalid provider name (see `PROVIDER` for supported values)
 - Missing Azure endpoint (required for Azure provider)
+- Missing AWS credentials or region (required for Bedrock provider)
 - Invalid CodeQL path (if `CODEQL_PATH` is set but file doesn't exist)
 
 ---
