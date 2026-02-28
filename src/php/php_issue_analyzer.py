@@ -184,6 +184,42 @@ class PHPIssueAnalyzer(IssueAnalyzer):
         _, meta = lookup.find_function_by_line(filepath, target_line)
         return meta
 
+
+    def _prepare_issue_context(
+        self, issue: dict
+    ) -> tuple[list[str], str, str]:
+        """
+        Override: set db_path and code_path from the issue dict (already
+        resolved by progpilot_adapter). Read source lines from filesystem.
+        Returns (code_file_lines, function_tree_file=None, src_zip_path=None).
+        """
+        self.db_path = issue["db_path"]
+        self.code_path = ""
+
+        sink_file = issue.get("file", "")
+        try:
+            lines = Path(sink_file).read_text(errors="replace").splitlines()
+        except OSError:
+            lines = []
+
+        # function_tree_file and src_zip_path are None — not used in PHP path.
+        # _find_current_function and append_extra_functions are also overridden
+        # so these None values never reach their CodeQL consumers.
+        return lines, None, None
+
+    def _find_current_function(
+        self, function_tree_file: str, issue: dict
+    ) -> dict:
+        """
+        Override: find enclosing PHP function via PHPDBLookup instead of
+        FunctionTree.csv.
+        """
+        lookup = PHPDBLookup(self.db_path)
+        sink_file = issue.get("file", "")
+        sink_line = int(issue.get("start_line") or 0)
+        _, meta = lookup.find_function_by_line(sink_file, sink_line)
+        return meta if meta else {}
+
     # =========================================================================
     # Override: LLM tool definitions
     # =========================================================================
