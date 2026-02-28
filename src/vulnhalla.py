@@ -500,6 +500,52 @@ class IssueAnalyzer:
         return max_issue_id + 1
 
 
+    def _prepare_issue_context(
+        self, issue: Dict[str, str]
+    ) -> Tuple[List[str], str, str]:
+        """
+        Set self.db_path and self.code_path from the issue, read the source
+        file contents, and return the artifacts needed by process_issue_type().
+
+        Returns:
+            (code_file_contents, function_tree_file, src_zip_path)
+
+        Override in language backends that do not use CodeQL databases.
+        """
+        self.db_path = issue["db_path"]
+        db_path_obj = Path(self.db_path)
+        db_yml = read_yml(str(db_path_obj / "codeql-database.yml"))
+        self.code_path = db_yml["sourceLocationPrefix"]
+
+        if ":" in self.code_path:
+            self.code_path = self.code_path.replace(":", "_").replace("\\", "/")
+        else:
+            self.code_path = self.code_path[1:]
+
+        function_tree_file = str(db_path_obj / "FunctionTree.csv")
+        src_zip_path = str(db_path_obj / "src.zip")
+        full_file_path = self.code_path + issue["file"]
+        code_file_contents = read_file_lines_from_zip(
+            src_zip_path, full_file_path
+        ).split("\n")
+
+        return code_file_contents, function_tree_file, src_zip_path
+    
+
+    def _find_current_function(
+        self, function_tree_file: str, issue: Dict[str, str]
+    ) -> Optional[Dict[str, str]]:
+        """
+        Find the enclosing function for an issue's sink location.
+
+        Override in language backends that do not use FunctionTree.csv.
+        """
+        return self.find_function_by_line(
+            function_tree_file,
+            "/" + self.code_path + issue["file"],
+            int(issue["start_line"])
+        )
+
     def process_issue_type(
         self,
         issue_type: str,
@@ -539,36 +585,10 @@ class IssueAnalyzer:
         logger.info("Found %d issues of type %s", len(issues_of_type), issue_type)
         logger.info("")
         for issue in issues_of_type:
-            self.db_path = issue["db_path"]
-            db_path_obj = Path(self.db_path)
-            db_yml_path = db_path_obj / "codeql-database.yml"
-            db_yml = read_yml(str(db_yml_path))
-            self.code_path = db_yml["sourceLocationPrefix"]
+            code_file_contents, function_tree_file, src_zip_path = \
+                self._prepare_issue_context(issue)
 
-            # Path normalization for cross-platform compatibility:
-            # Windows paths contain ":" (e.g., "C:\path\to\code") which conflicts with
-            # ZIP archive path handling. We normalize by:
-            # - Replacing ":" with "_" (e.g., "C_" instead of "C:")
-            # - Converting backslashes to forward slashes
-            # Linux paths are absolute (start with "/") which we remove for ZIP access
-            if ":" in self.code_path:
-                # Windows path: normalize drive letter and separators
-                self.code_path = self.code_path.replace(":", "_").replace("\\", "/")
-            else:
-                # Linux path: remove leading slash
-                self.code_path = self.code_path[1:]
-
-            function_tree_file = str(db_path_obj / "FunctionTree.csv")
-            src_zip_path = str(db_path_obj / "src.zip")
-
-            full_file_path = self.code_path + issue["file"]
-            code_file_contents = read_file_lines_from_zip(src_zip_path, full_file_path).split("\n")
-
-            current_function = self.find_function_by_line(
-                function_tree_file,
-                "/" + self.code_path + issue["file"],
-                int(issue["start_line"])
-            )
+            current_function = self._find_current_function(function_tree_file, issue)
             if not current_function:
                 logger.warning("issue %s: Can't find the function or function is too big!", issue_id)
                 continue
