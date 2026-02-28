@@ -230,6 +230,54 @@ def main_analyze() -> None:
         parser.error("Either provide a repository (org/repo) or use --local <path>")
 
 
+def main_analyze_php() -> None:
+    """
+    CLI entry point for the PHP/WordPress analysis pipeline.
+
+    Expected usage:
+        vulnhalla-php --plugins-dir /path/to/plugins
+        vulnhalla-php --progpilot-findings /path/to/findings.json
+        vulnhalla-php --progpilot-findings /path/to/findings.json --threshold high
+    """
+    parser = argparse.ArgumentParser(
+        prog="vulnhalla-php",
+        description="Vulnhalla PHP — WordPress plugin analysis via Progpilot + LLM triage"
+    )
+    parser.add_argument(
+        "--plugins-dir", "-p",
+        metavar="PATH",
+        help="Root directory containing unzipped WordPress plugins"
+    )
+    parser.add_argument(
+        "--progpilot-findings", "-f",
+        metavar="PATH",
+        help="Path to pre-computed progpilot findings JSON (skips scan + triage)"
+    )
+    parser.add_argument(
+        "--threshold", "-t",
+        default="high,medium",
+        metavar="LEVELS",
+        help="Comma-separated confidence levels to forward to LLM (default: high,medium)"
+    )
+    parser.add_argument(
+        "--no-ui",
+        action="store_true",
+        help="Skip opening the UI after analysis"
+    )
+
+    args = parser.parse_args()
+
+    if not args.plugins_dir and not args.progpilot_findings:
+        parser.error("Either --plugins-dir or --progpilot-findings is required")
+
+    _run_php_pipeline(
+        plugins_dir=Path(args.plugins_dir) if args.plugins_dir else None,
+        progpilot_findings=Path(args.progpilot_findings) if args.progpilot_findings else None,
+        triage_threshold=args.threshold,
+        open_ui=not args.no_ui,
+    )
+
+
 def analyze_pipeline(
     repo: Optional[str] = None,
     lang: str = "c",
@@ -370,6 +418,112 @@ def main_example() -> None:
     """
     from examples.example import main as example_main
     example_main()
+    
+def _run_php_pipeline(
+    plugins_dir: Optional[Path],
+    progpilot_findings: Optional[Path],
+    triage_threshold: str = "high,medium",
+    open_ui: bool = True,
+) -> None:
+    """
+    PHP/WordPress analysis pipeline using Progpilot + PHPIssueAnalyzer.
+
+    Args:
+        plugins_dir:        Root directory of unzipped WordPress plugins.
+        progpilot_findings: Path to pre-computed progpilot findings JSON.
+                            If provided, skips scan and triage steps.
+        triage_threshold:   Comma-separated confidence levels to pass to LLM.
+        open_ui:            Whether to open the UI after completion.
+    """
+    import json
+    from src.php.progpilot_adapter import normalize_findings
+    from src.php.php_issue_analyzer import PHPIssueAnalyzer
+
+    threshold = frozenset(triage_threshold.split(","))
+
+    # ── Step 1: Load or compute findings ─────────────────────────────────────
+    if progpilot_findings and progpilot_findings.exists():
+        logger.info("\nStep 1: Loading pre-computed Progpilot findings")
+        logger.info("-" * 60)
+        logger.info("Findings file: %s", progpilot_findings)
+        try:
+            raw = json.loads(progpilot_findings.read_text())
+        except (json.JSONDecodeError, OSError) as e:
+            logger.error("[-] Failed to load findings file: %s", e)
+            sys.exit(1)
+        triaged = raw  # pre-computed findings are already triaged
+    else:
+        if not plugins_dir or not plugins_dir.exists():
+            logger.error("[-] --plugins-dir is required when no --progpilot-findings provided")
+            sys.exit(1)
+
+        logger.info("\nStep 1: Running Progpilot scan + triage")
+        logger.info("-" * 60)
+        logger.info("Plugins directory: %s", plugins_dir)
+
+        try:
+            import wp_progpilot_hunter as wph
+        except ImportError:
+            logger.error("[-] wp_progpilot_hunter not found — ensure it is on PYTHONPATH")
+            sys.exit(1)
+
+        findings_path = Path("output/progpilot_raw.json")
+        findings_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            wph.scan(plugins_dir, findings_path)
+            raw = json.loads(findings_path.read_text())
+            triaged = wph.triage(raw, plugins_dir)
+            wph.report(triaged, Path("output/progpilot_findings.json"))
+        except Exception as e:
+            logger.error("[-] Progpilot scan/triage failed: %s", e)
+            sys.exit(1)
+
+    # ── Step 2: Normalize to Vulnhalla issue format ───────────────────────────
+    logger.info("\nStep 2: Normalizing findings")
+    logger.info("-" * 60)
+
+    resolve_dir = plugins_dir or progpilot_findings.parent
+    issues = normalize_findings(triaged, resolve_dir, threshold)
+
+    if not issues:
+        logger.info("[+] No findings above triage threshold — nothing to send to LLM.")
+        if open_ui:
+            step4_open_ui()
+        return
+
+    logger.info("[+] %d findings above threshold → proceeding to LLM triage", len(issues))
+
+    # ── Step 3: LLM triage via PHPIssueAnalyzer ───────────────────────────────
+    logger.info("\nStep 3: Classifying results with LLM")
+    logger.info("-" * 60)
+
+    try:
+        from src.llm.llm_analyzer import LLMAnalyzer
+        analyzer = PHPIssueAnalyzer(issues, lang="php")
+        llm_analyzer = LLMAnalyzer()
+        llm_analyzer.init_llm_client()
+
+        issues_by_type = analyzer.collect_issues_from_databases()
+        for issue_type, issues_of_type in issues_by_type.items():
+            analyzer.process_issue_type(issue_type, issues_of_type, llm_analyzer)
+
+    except LLMConfigError as e:
+        logger.error("[-] Step 3: LLM configuration error: %s", e)
+        _log_exception_cause(e)
+        sys.exit(1)
+    except LLMApiError as e:
+        logger.error("[-] Step 3: LLM API error: %s", e)
+        _log_exception_cause(e)
+        sys.exit(1)
+    except VulnhallaError as e:
+        logger.error("[-] Step 3: File system error: %s", e)
+        _log_exception_cause(e)
+        sys.exit(1)
+
+    # ── Step 4: Open UI ───────────────────────────────────────────────────────
+    if open_ui:
+        step4_open_ui()
 
 
 if __name__ == '__main__':
