@@ -1,0 +1,8 @@
+The static analyzer identified a taint path from an external source to a database query sink.
+1. What is the origin of the tainted value — $_GET, $_POST, $_REQUEST, $_COOKIE, get_option(), or a DB read function?
+2. Is $wpdb->prepare() used at any point in this path? Is the query fully parameterized (all user-controlled values as %s/%d placeholders)?
+3. Is the value sanitized by esc_sql(), intval(), or absint() before reaching the sink? Note: sanitize_text_field() is NOT sufficient for SQL context.
+4. Is the tainted value interpolated directly into the query string, or passed as a separate argument to prepare()?
+5. Is there a nonce check (check_ajax_referer, wp_verify_nonce) before this path executes? Is the nonce embedded in public page source (wp_localize_script)? If yes, it provides no access control.
+6. Is there a current_user_can() capability check? If yes, what capability is required — could a subscriber reach this?
+Use tools to retrieve the full function body and any intermediate functions between the source and sink.

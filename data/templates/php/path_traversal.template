@@ -1,0 +1,9 @@
+The static analyzer identified a taint path from an external source to a filesystem operation.
+1. What is the origin of the tainted value — a superglobal, a DB option, or a server-assigned value (e.g., $_FILES['tmp_name'] is server-assigned and is NOT attacker-controlled for path traversal)?
+2. What filesystem operation is at the sink — file_get_contents, file_put_contents, include, require, fopen, unlink, rename, or similar?
+3. Is the path confined to a known safe base directory using realpath() + a prefix check? Is ABSPATH or a plugin constant used as a base?
+4. Is basename() applied to strip directory separators? Note: basename() alone is insufficient if the path is later joined with a directory.
+5. Could an attacker use ../ sequences or null bytes to escape the intended directory?
+6. For file inclusion sinks (include/require): could the attacker control the filename to load a PHP file from a path outside the plugin? Could this lead to remote file inclusion?
+7. Is there a nonce and capability check before this path executes?
+Use tools to retrieve the full function body and any path construction logic.

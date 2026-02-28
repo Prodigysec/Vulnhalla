@@ -1,0 +1,9 @@
+The static analyzer identified a taint path to a code execution sink (eval, unserialize, preg_replace with /e, create_function, call_user_func with attacker-controlled callable, or similar).
+1. What is the origin of the tainted value — a superglobal, a DB option, serialized cookie data?
+2. For unserialize() sinks: is the second argument ['allowed_classes' => false] present? If yes, object injection is blocked — but verify that the resulting array values do not subsequently reach a dangerous sink.
+3. For eval() sinks: is the evaluated string constrained to a known safe format, or can an attacker inject arbitrary PHP?
+4. For preg_replace() sinks: is the /e modifier (deprecated in PHP 5.5, removed in PHP 7) in use? Could an attacker control the pattern?
+5. For call_user_func/call_user_func_array: could an attacker control the callable argument? If yes, this is arbitrary function call — potentially RCE.
+6. Is the input validated against a strict whitelist before reaching the sink?
+7. Is there an access gate — nonce plus capability check — before this executes? What is the minimum privilege level required?
+Use tools to retrieve the function body and all points where the tainted value is assigned or filtered.

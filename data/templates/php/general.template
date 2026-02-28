@@ -1,0 +1,4 @@
+1. Is the tainted value genuinely attacker-controllable, or is it server-assigned (e.g., a temp path, a DB-internal value, a hardcoded constant)?
+2. Is there an effective access gate before this code executes — a nonce that is NOT publicly exposed in page source, plus a capability check (current_user_can)?
+3. Is the sink reachable via an unauthenticated channel (wp_ajax_nopriv_, public REST route, shortcode, frontend hook)?
+Use tools to trace the full call chain before deciding.

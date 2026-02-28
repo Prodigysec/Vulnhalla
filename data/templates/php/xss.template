@@ -1,0 +1,14 @@
+The static analyzer identified a taint path from an external source to an output sink (echo, print, or similar).
+1. What is the origin of the tainted value — $_GET, $_POST, get_option(), a DB read, or a function return value?
+2. What output context is the sink in — HTML text node, HTML attribute, JavaScript string, URL attribute, or CSS value? The required escaping function differs by context.
+3. Is the correct WordPress escaping function applied?
+   - HTML text node: esc_html() or wp_kses()
+   - HTML attribute: esc_attr()
+   - URL attribute: esc_url()
+   - JavaScript string: esc_js() or wp_json_encode()
+   - Bare wp_kses_post() is safe only for trusted content
+4. Is nl2br(), addslashes(), strip_tags(), or htmlspecialchars() used instead of the correct WP escaping function? These are insufficient in most contexts.
+5. Is the output inside a <script> block? esc_attr() and esc_html() do NOT prevent XSS in JavaScript context.
+6. Is there a nonce check before this code executes, and is the nonce publicly exposed?
+7. Is there a capability check, and at what level?
+Use tools to examine the full rendering path from source to sink.

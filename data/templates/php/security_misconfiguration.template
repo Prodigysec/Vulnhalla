@@ -1,0 +1,7 @@
+The static analyzer flagged a security configuration issue (cookie flags, header settings, or similar).
+1. What specific misconfiguration was detected — missing HttpOnly flag, missing Secure flag, missing SameSite attribute, exposed debug information?
+2. For cookie flags: retrieve the setcookie() or setrawcookie() call and confirm which flags are set. Are HttpOnly and Secure present?
+3. Is this cookie used for session management or authentication? If yes, missing flags are higher severity.
+4. Is this code path reachable by unauthenticated users, or only authenticated?
+5. For missing Secure flag: is the site expected to operate over HTTPS only, or is HTTP also supported? Missing Secure flag on HTTP-only sites has no practical impact.
+Note: MUST_VERIFY_DEFINITION findings require manual confirmation — the static analyzer could not fully resolve the call. Verify the actual setcookie() signature before classifying.
