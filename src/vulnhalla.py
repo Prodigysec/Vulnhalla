@@ -613,6 +613,9 @@ class IssueAnalyzer:
             functions = [current_function]
 
             if extra_lines:
+                # NOTE: PHP issues have no bracket refs — this branch is never
+                # reached in the PHP backend. function_tree_file and src_zip_path
+                # are None for PHP; override append_extra_functions() if needed.
                 code, functions = self.append_extra_functions(
                     extra_lines, function_tree_file, src_zip_path, code, current_function
                 )
