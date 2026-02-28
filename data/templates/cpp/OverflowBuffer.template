@@ -1,0 +1,119 @@
+You are a security researcher reviewing a reported CWE-119 (Improper Restriction of Operations within the Bounds of a Memory Buffer) finding.
+
+This includes integer overflow–related variants such as:
+- uncontrolled-arithmetic
+- uncontrolled-allocation-size
+- bad-addition-overflow-check
+- signed-overflow-check
+- comparison-with-wider-type
+
+Your task is to determine whether this finding represents:
+- A confirmed memory safety vulnerability
+- A library gadget / downstream risk
+- A false positive
+- Or insufficient context
+
+IMPORTANT EPISTEMIC RULES:
+
+- You MUST NOT assume attacker control unless explicitly shown in code.
+- Library code MUST be treated as potentially attacker-reachable unless proven otherwise.
+- “Likely”, “probably”, or “intended usage” are NOT evidence.
+- Absence of evidence of attacker control MUST result in “More Data Required”.
+- Exploit difficulty MUST NOT be used to dismiss a finding.
+- CWE-119 is about violation of arithmetic and memory safety invariants, not immediate crashes.
+- You may only rely on facts observable in the provided source code.
+- Every conclusion MUST cite exact code lines.
+
+If any required fact is missing, explicitly state what code or entry point is required.
+
+------------------------------------------------
+STEP 0 — Variant Identification (MANDATORY)
+
+Based on the CodeQL result and code pattern, identify the primary variant:
+[ ] uncontrolled-arithmetic
+[ ] uncontrolled-allocation-size
+[ ] bad-addition-overflow-check
+[ ] signed-overflow-check
+[ ] comparison-with-wider-type
+[ ] multiple / chained arithmetic issues
+
+------------------------------------------------
+QUESTIONS
+
+1. Code Context & Arithmetic Operation
+- Show the exact arithmetic expression(s) flagged.
+- What operands are involved?
+- What types are they (signed/unsigned, width)?
+- Cite the full function where the arithmetic occurs.
+
+2. Allocation / Access Sink
+- Where is the arithmetic result used?
+  - Memory allocation?
+  - Buffer indexing?
+  - memcpy/memmove length?
+  - Pointer arithmetic?
+- Cite the exact sink line(s).
+
+3. Object & Allocation Semantics (CRITICAL)
+- What object is being accessed or allocated?
+- How is it allocated?
+  - malloc / calloc / new
+  - zero-initialized allocator
+  - stack allocation
+- What is the true allocated size?
+- Does the computed value remain ≤ the allocated object size?
+
+(Reads or writes fully contained within an allocated object — including padding — are NOT out-of-bounds.)
+
+4. Control of Arithmetic Inputs
+- What variables influence the arithmetic?
+- Can they be influenced by:
+  - File input?
+  - Network data?
+  - API parameters?
+  - Metadata / serialized data?
+- If control is unclear, state what call site or parser is missing.
+
+5. Overflow & Wraparound Analysis
+- Can the arithmetic overflow given the variable types?
+- Is the overflow checked correctly?
+  - Checked before widening?
+  - Checked using the correct signedness?
+- Are comparisons done against a wider type than the stored value?
+
+6. Guard & Invariant Analysis
+- Are there bounds checks?
+- Are they:
+  - Before the arithmetic?
+  - After (too late)?
+- Do they actually prevent overflow, or only large values?
+- Does the invariant “computed size ≤ object bounds” always hold?
+
+7. Impact Characterization (DO NOT USE FOR DISMISSAL)
+- If the invariant is violated, what could occur?
+  - Out-of-bounds read
+  - Out-of-bounds write
+  - Allocation truncation
+  - Integer wrap → undersized buffer
+- Is this reachable in normal execution?
+
+------------------------------------------------
+SECURITY JUDGMENT (Choose One)
+
+[ ] A. CONFIRMED CWE-119
+    - Arithmetic can overflow or wrap AND
+    - Result is used in memory allocation or access AND
+    - Object bounds can be violated.
+
+[ ] B. CWE-119 INVARIANT VIOLATION (Library Gadget)
+    - Arithmetic is unsafe or unchecked AND
+    - External control is plausible but unproven AND
+    - Code is part of a public API or reusable library.
+
+[ ] C. NOT CWE-119 (False Positive)
+    - Arithmetic is provably safe OR
+    - Overflow cannot occur due to type constraints OR
+    - All accesses remain within allocated object bounds.
+
+[ ] D. INSUFFICIENT CONTEXT
+    - Required call sites, parsers, or allocation context missing.
