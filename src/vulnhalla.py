@@ -296,10 +296,23 @@ class IssueAnalyzer:
 
         # Try to read an existing template specific to the issue name
         templates_base = Path("data/templates") / lang_folder
-        hints_path = templates_base / f"{issue['name']}.template"
+        # Map display names to template filenames for languages that use
+        # human-readable names (e.g. PHP via progpilot_adapter).
+        _TEMPLATE_FILENAME_MAP = {
+            "SQL Injection":                 "sql_injection",
+            "Cross-site Scripting":          "xss",
+            "Path Traversal":                "path_traversal",
+            "Code Injection":                "code_injection",
+            "Command Injection":             "command_injection",
+            "Server-Side Request Forgery":   "ssrf",
+            "XML External Entity":           "xxe",
+            "Open Redirect":                 "open_redirect",
+            "Security Misconfiguration":     "security_misconfiguration",
+        }
+        template_stem = _TEMPLATE_FILENAME_MAP.get(issue["name"], issue["name"])
+        hints_path = templates_base / f"{template_stem}.template"
         if not hints_path.exists():
             hints_path = templates_base / "general.template"
-
         hints = read_file_utf8(str(hints_path))
 
         # Read the larger general template
