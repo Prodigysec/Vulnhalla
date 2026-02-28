@@ -33,6 +33,7 @@ vulnhalla-ui = "src.pipeline:main_ui"
 vulnhalla-validate = "src.pipeline:main_validate"
 vulnhalla-list = "src.pipeline:main_list"
 vulnhalla-example = "src.pipeline:main_example"
+vulnhalla-php = "src.pipeline:main_analyze_php"
 
 [build-system]
 requires = ["poetry-core"]
